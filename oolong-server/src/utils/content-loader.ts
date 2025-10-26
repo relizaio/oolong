@@ -96,7 +96,26 @@ export class ContentLoader {
     console.log('Found product release files:', releaseFiles);
     
     const releases = releaseFiles
-      .map(file => this.loadYamlFile<ProductRelease>(file))
+      .map(file => {
+        const release = this.loadYamlFile<ProductRelease>(file);
+        if (!release) return null;
+        
+        // Find the parent product by traversing up the directory structure
+        // Path structure: .../products/{product_name}/releases/{release_version}/release.yaml
+        const releaseDir = path.dirname(file);
+        const releasesDir = path.dirname(releaseDir);
+        const productDir = path.dirname(releasesDir);
+        const productFile = path.join(productDir, 'product.yaml');
+        
+        const product = this.loadYamlFile<Product>(productFile);
+        if (product) {
+          // Populate product and productName from the parent product
+          release.product = product.uuid;
+          release.productName = product.name;
+        }
+        
+        return release;
+      })
       .filter((r): r is ProductRelease => r !== null);
     console.log('Loaded product releases:', releases);
     
@@ -152,7 +171,26 @@ export class ContentLoader {
       .filter(f => f.includes(path.sep + 'releases' + path.sep));
     
     return releaseFiles
-      .map(file => this.loadYamlFile<Release>(file))
+      .map(file => {
+        const release = this.loadYamlFile<Release>(file);
+        if (!release) return null;
+        
+        // Find the parent component by traversing up the directory structure
+        // Path structure: .../components/{component_name}/releases/{release_version}/release.yaml
+        const releaseDir = path.dirname(file);
+        const releasesDir = path.dirname(releaseDir);
+        const componentDir = path.dirname(releasesDir);
+        const componentFile = path.join(componentDir, 'component.yaml');
+        
+        const component = this.loadYamlFile<Component>(componentFile);
+        if (component) {
+          // Populate component and componentName from the parent component
+          release.component = component.uuid;
+          release.componentName = component.name;
+        }
+        
+        return release;
+      })
       .filter((r): r is Release => r !== null);
   }
 
@@ -201,7 +239,22 @@ export class ContentLoader {
           const collectionFiles = this.findFiles(collectionsDir, /\.yaml$/);
           console.log('Collection files found:', collectionFiles);
           const collections = collectionFiles
-            .map(file => this.loadYamlFile<Collection>(file))
+            .map(file => {
+              const collection = this.loadYamlFile<Collection>(file);
+              if (!collection) return null;
+              
+              // Populate uuid from the parent release
+              collection.uuid = releaseUuid;
+              
+              // Determine belongsTo based on directory structure
+              if (file.includes(path.sep + 'components' + path.sep)) {
+                collection.belongsTo = 'COMPONENT_RELEASE' as any;
+              } else if (file.includes(path.sep + 'products' + path.sep)) {
+                collection.belongsTo = 'PRODUCT_RELEASE' as any;
+              }
+              
+              return collection;
+            })
             .filter((c): c is Collection => c !== null)
             .sort((a, b) => (a.version || 0) - (b.version || 0));
           console.log('Loaded collections:', collections);
@@ -226,21 +279,56 @@ export class ContentLoader {
    * Load all collections for a product release
    */
   loadCollectionsByProductReleaseUuid(releaseUuid: string): Collection[] {
-    // For product releases, we need to aggregate collections from all component releases
-    const productRelease = this.loadProductReleaseByUuid(releaseUuid);
-    if (!productRelease) {
-      return [];
-    }
-
-    const allCollections: Collection[] = [];
+    const productsDir = path.join(this.contentDir, 'products');
     
-    for (const componentRef of productRelease.components || []) {
-      if (componentRef.release) {
-        const collections = this.loadCollectionsByComponentReleaseUuid(componentRef.release);
-        allCollections.push(...collections);
+    console.log(`Loading collections for product release: ${releaseUuid}`);
+    
+    // Find the release directory
+    const releaseFiles = this.findFiles(productsDir, /^release\.yaml$/)
+      .filter(f => f.includes(path.sep + 'releases' + path.sep));
+    
+    console.log('Product release files found:', releaseFiles);
+    
+    for (const releaseFile of releaseFiles) {
+      const release = this.loadYamlFile<ProductRelease>(releaseFile);
+      console.log(`Checking release file ${releaseFile}, uuid: ${release?.uuid}`);
+      if (release?.uuid === releaseUuid) {
+        // Found the release, now look for collections in the same directory
+        const releaseDir = path.dirname(releaseFile);
+        const collectionsDir = path.join(releaseDir, 'collections');
+        
+        console.log('Release found! Collections dir:', collectionsDir);
+        console.log('Collections dir exists:', fs.existsSync(collectionsDir));
+        
+        if (fs.existsSync(collectionsDir)) {
+          const collectionFiles = this.findFiles(collectionsDir, /\.yaml$/);
+          console.log('Collection files found:', collectionFiles);
+          const collections = collectionFiles
+            .map(file => {
+              const collection = this.loadYamlFile<Collection>(file);
+              if (!collection) return null;
+              
+              // Populate uuid from the parent release
+              collection.uuid = releaseUuid;
+              
+              // Determine belongsTo based on directory structure
+              if (file.includes(path.sep + 'components' + path.sep)) {
+                collection.belongsTo = 'COMPONENT_RELEASE' as any;
+              } else if (file.includes(path.sep + 'products' + path.sep)) {
+                collection.belongsTo = 'PRODUCT_RELEASE' as any;
+              }
+              
+              return collection;
+            })
+            .filter((c): c is Collection => c !== null)
+            .sort((a, b) => (a.version || 0) - (b.version || 0));
+          console.log('Loaded collections:', collections);
+          return collections;
+        }
       }
     }
-
-    return allCollections;
+    
+    console.log('No collections found for release');
+    return [];
   }
 }

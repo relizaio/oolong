@@ -13,7 +13,14 @@ export class TEAComponentReleaseService implements TEAComponentReleaseApi {
   }
 
   getCollection(uuid: string, collectionVersion: number, request: Request): Collection | Promise<Collection> | Observable<Collection> {
-    const collection = this.contentLoader.loadCollectionByReleaseUuidAndVersion(uuid, collectionVersion);
+    // Handle "latest" as a special case
+    if (collectionVersion === 'latest' as any) {
+      return this.getLatestCollection(uuid, request);
+    }
+    
+    // Convert collectionVersion to number if it's a string (route params are strings by default)
+    const versionNumber = typeof collectionVersion === 'string' ? parseInt(collectionVersion, 10) : collectionVersion;
+    const collection = this.contentLoader.loadCollectionByReleaseUuidAndVersion(uuid, versionNumber);
     
     if (!collection) {
       throw new NotFoundException(`Collection version ${collectionVersion} not found for component release ${uuid}`);

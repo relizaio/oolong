@@ -13,8 +13,18 @@ export class TEAProductReleaseService implements TEAProductReleaseApi {
   }
 
   getCollectionForProductRelease(uuid: string, collectionVersion: number, request: Request): Collection | Promise<Collection> | Observable<Collection> {
+    // Handle "latest" as a special case
+    if (collectionVersion === 'latest' as any) {
+      return this.getLatestCollectionForProductRelease(uuid, request);
+    }
+    
     const collections = this.contentLoader.loadCollectionsByProductReleaseUuid(uuid);
-    const collection = collections.find(c => c.version === collectionVersion);
+    console.log('getCollectionForProductRelease called with:', { uuid, collectionVersion, type: typeof collectionVersion });
+    console.log('Available collections:', collections.map(c => ({ version: c.version, type: typeof c.version })));
+    
+    // Convert collectionVersion to number if it's a string (route params are strings by default)
+    const versionNumber = typeof collectionVersion === 'string' ? parseInt(collectionVersion, 10) : collectionVersion;
+    const collection = collections.find(c => c.version === versionNumber);
     
     if (!collection) {
       throw new NotFoundException(`Collection version ${collectionVersion} not found for product release ${uuid}`);
