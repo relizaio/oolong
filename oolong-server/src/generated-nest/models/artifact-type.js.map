@@ -1,0 +1,1 @@
+{"version":3,"file":"artifact-type.js","sourceRoot":"","sources":["artifact-type.ts"],"names":[],"mappings":";;;AAKa,QAAA,YAAY,GAAG;IACxB,WAAW,EAAE,aAAa;IAC1B,GAAG,EAAE,KAAK;IACV,SAAS,EAAE,YAAY;IACvB,aAAa,EAAE,eAAe;IAC9B,WAAW,EAAE,aAAa;IAC1B,OAAO,EAAE,SAAS;IAClB,YAAY,EAAE,eAAe;IAC7B,WAAW,EAAE,cAAc;IAC3B,WAAW,EAAE,cAAc;IAC3B,eAAe,EAAE,iBAAiB;IAClC,KAAK,EAAE,OAAO;CACR,CAAC"}

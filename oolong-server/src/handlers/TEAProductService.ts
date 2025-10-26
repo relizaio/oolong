@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { TEAProductApi } from '../../../generated-nest/api';
-import { IdentifierType, PaginatedProductResponse, Product } from '../../../generated-nest/models';
+import { TEAProductApi } from '../generated-nest/api';
+import { IdentifierType, PaginatedProductResponse, Product } from '../generated-nest/models';
 
 @Injectable()
 export class TEAProductService implements TEAProductApi {

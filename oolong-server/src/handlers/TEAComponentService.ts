@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { TEAComponentApi } from '../../../generated-nest/api';
-import { Component, Release } from '../../../generated-nest/models';
+import { TEAComponentApi } from '../generated-nest/api';
+import { Component, Release } from '../generated-nest/models';
 
 @Injectable()
 export class TEAComponentService implements TEAComponentApi {

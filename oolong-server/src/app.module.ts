@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ApiModule, ApiImplementations } from '../../generated-nest';
+import { ApiModule, ApiImplementations } from './generated-nest';
 import { TEAArtifactService } from './handlers/TEAArtifactService';
 import { TEAComponentService } from './handlers/TEAComponentService';
 import { TEAComponentReleaseService } from './handlers/TEAComponentReleaseService';

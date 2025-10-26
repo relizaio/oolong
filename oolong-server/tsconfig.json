@@ -20,10 +20,6 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false,
-    "paths": {
-      "generated-nest": ["../generated-nest"],
-      "generated-nest/*": ["../generated-nest/*"]
-    }
+    "noFallthroughCasesInSwitch": false
   }
 }
