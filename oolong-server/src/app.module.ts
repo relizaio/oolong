@@ -8,6 +8,7 @@ import { TEAComponentReleaseService } from './handlers/TEAComponentReleaseServic
 import { TEADiscoveryService } from './handlers/TEADiscoveryService';
 import { TEAProductService } from './handlers/TEAProductService';
 import { TEAProductReleaseService } from './handlers/TEAProductReleaseService';
+import { WellKnownController } from './controllers/well-known.controller';
 
 const apiImplementations: ApiImplementations = {
   tEAArtifactApi: TEAArtifactService,
@@ -22,7 +23,7 @@ const apiImplementations: ApiImplementations = {
   imports: [
     ApiModule.forRoot(apiImplementations),
   ],
-  controllers: [AppController],
+  controllers: [AppController, WellKnownController],
   providers: [AppService],
 })
 export class AppModule {}

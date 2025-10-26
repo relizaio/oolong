@@ -93,10 +93,34 @@ The default content directory is `src/content/`, but it's currently gitignored (
 
 - **`API_VERSION`** (default: `v0.2.0-beta.2`) - Version prefix for all API endpoints
   - Example: With default value, endpoints become `/v0.2.0-beta.2/products`
+  - The version is also exposed in the `/.well-known/tea` discovery endpoint
+- **`SERVER_HOST`** (default: `https://demo.rearmhq.com/tea`) - Public URL for the TEA API
+  - Used in the `/.well-known/tea` discovery endpoint
 - **`PORT`** (default: `3000`) - Server port
 - **`CONTENT_DIR`** (optional) - Custom path to content directory (defaults to `src/content`)
 
 Create a `.env` file based on `.env.example` to customize these values.
+
+### Discovery Endpoint
+
+The server provides a `.well-known/tea` endpoint (without version prefix) for TEA discovery:
+
+```
+GET /.well-known/tea
+```
+
+Returns:
+```json
+{
+  "endpoints": [
+    {
+      "versions": ["0.2.0-beta.2"],
+      "url": "https://demo.rearmhq.com/tea"
+    }
+  ],
+  "schemaVersion": 1
+}
+```
 
 ## Testing
 To test the implementation:
