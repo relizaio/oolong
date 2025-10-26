@@ -88,12 +88,19 @@ export class ContentLoader {
    */
   loadAllProductReleases(): ProductRelease[] {
     const productsDir = path.join(this.contentDir, 'products');
-    const releaseFiles = this.findFiles(productsDir, /^release\.yaml$/)
-      .filter(f => f.includes('/releases/'));
+    console.log('Loading product releases from:', productsDir);
+    const allReleaseFiles = this.findFiles(productsDir, /^release\.yaml$/);
+    console.log('All release.yaml files found:', allReleaseFiles);
+    const releaseFiles = allReleaseFiles
+      .filter(f => f.includes(path.sep + 'releases' + path.sep));
+    console.log('Found product release files:', releaseFiles);
     
-    return releaseFiles
+    const releases = releaseFiles
       .map(file => this.loadYamlFile<ProductRelease>(file))
       .filter((r): r is ProductRelease => r !== null);
+    console.log('Loaded product releases:', releases);
+    
+    return releases;
   }
 
   /**
@@ -109,7 +116,11 @@ export class ContentLoader {
    */
   loadProductReleasesByProductUuid(productUuid: string): ProductRelease[] {
     const releases = this.loadAllProductReleases();
-    return releases.filter(r => r.product === productUuid);
+    console.log(`Filtering releases for product ${productUuid}`);
+    console.log('All releases:', releases.map(r => ({ uuid: r.uuid, product: r.product })));
+    const filtered = releases.filter(r => r.product === productUuid);
+    console.log('Filtered releases:', filtered);
+    return filtered;
   }
 
   /**
@@ -138,7 +149,7 @@ export class ContentLoader {
   loadAllComponentReleases(): Release[] {
     const componentsDir = path.join(this.contentDir, 'components');
     const releaseFiles = this.findFiles(componentsDir, /^release\.yaml$/)
-      .filter(f => f.includes('/releases/'));
+      .filter(f => f.includes(path.sep + 'releases' + path.sep));
     
     return releaseFiles
       .map(file => this.loadYamlFile<Release>(file))
