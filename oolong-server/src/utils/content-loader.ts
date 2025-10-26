@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import { Product, ProductRelease, Component, Release, Collection } from '../generated-nest/models';
+import { Product, ProductRelease, Component, Release, Collection, Artifact } from '../generated-nest/models';
 
 export class ContentLoader {
   private readonly contentDir: string;
@@ -240,7 +240,7 @@ export class ContentLoader {
           console.log('Collection files found:', collectionFiles);
           const collections = collectionFiles
             .map(file => {
-              const collection = this.loadYamlFile<Collection>(file);
+              const collection = this.loadYamlFile<any>(file);
               if (!collection) return null;
               
               // Populate uuid from the parent release
@@ -253,7 +253,21 @@ export class ContentLoader {
                 collection.belongsTo = 'PRODUCT_RELEASE' as any;
               }
               
-              return collection;
+              // Resolve artifact UUIDs to full Artifact objects
+              if (collection.artifacts && Array.isArray(collection.artifacts)) {
+                collection.artifacts = collection.artifacts
+                  .map((artifactRef: any) => {
+                    // If it's a string (UUID), load the artifact
+                    if (typeof artifactRef === 'string') {
+                      return this.loadArtifactByUuid(artifactRef);
+                    }
+                    // If it's already an object, return as-is
+                    return artifactRef;
+                  })
+                  .filter((a: any) => a !== null);
+              }
+              
+              return collection as Collection;
             })
             .filter((c): c is Collection => c !== null)
             .sort((a, b) => (a.version || 0) - (b.version || 0));
@@ -305,7 +319,7 @@ export class ContentLoader {
           console.log('Collection files found:', collectionFiles);
           const collections = collectionFiles
             .map(file => {
-              const collection = this.loadYamlFile<Collection>(file);
+              const collection = this.loadYamlFile<any>(file);
               if (!collection) return null;
               
               // Populate uuid from the parent release
@@ -318,7 +332,21 @@ export class ContentLoader {
                 collection.belongsTo = 'PRODUCT_RELEASE' as any;
               }
               
-              return collection;
+              // Resolve artifact UUIDs to full Artifact objects
+              if (collection.artifacts && Array.isArray(collection.artifacts)) {
+                collection.artifacts = collection.artifacts
+                  .map((artifactRef: any) => {
+                    // If it's a string (UUID), load the artifact
+                    if (typeof artifactRef === 'string') {
+                      return this.loadArtifactByUuid(artifactRef);
+                    }
+                    // If it's already an object, return as-is
+                    return artifactRef;
+                  })
+                  .filter((a: any) => a !== null);
+              }
+              
+              return collection as Collection;
             })
             .filter((c): c is Collection => c !== null)
             .sort((a, b) => (a.version || 0) - (b.version || 0));
@@ -330,5 +358,29 @@ export class ContentLoader {
     
     console.log('No collections found for release');
     return [];
+  }
+
+  /**
+   * Load an artifact by UUID
+   */
+  loadArtifactByUuid(uuid: string): Artifact | null {
+    const artifactsDir = path.join(this.contentDir, 'artifacts');
+    const artifactFile = path.join(artifactsDir, `${uuid}.yaml`);
+    
+    if (!fs.existsSync(artifactFile)) {
+      console.log(`Artifact file not found: ${artifactFile}`);
+      return null;
+    }
+    
+    const artifact = this.loadYamlFile<any>(artifactFile);
+    if (artifact) {
+      // Add the UUID to the artifact object
+      artifact.uuid = uuid;
+      
+      // Remove version field as it's not part of the TEA API spec yet
+      delete artifact.version;
+    }
+    
+    return artifact as Artifact;
   }
 }
