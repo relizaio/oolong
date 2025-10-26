@@ -1,7 +1,5 @@
-uuid: 7a7fa4da-bf9b-478f-b934-2fe9e0fc317c
 version: 2
 date: '2025-10-16T19:09:28Z'
-belongsTo: COMPONENT_RELEASE
 updateReason:
   type: ARTIFACT_ADDED
   comment: 
