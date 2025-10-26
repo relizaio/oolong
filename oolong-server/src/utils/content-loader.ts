@@ -178,27 +178,39 @@ export class ContentLoader {
   loadCollectionsByComponentReleaseUuid(releaseUuid: string): Collection[] {
     const componentsDir = path.join(this.contentDir, 'components');
     
+    console.log(`Loading collections for component release: ${releaseUuid}`);
+    
     // Find the release directory
     const releaseFiles = this.findFiles(componentsDir, /^release\.yaml$/)
-      .filter(f => f.includes('/releases/'));
+      .filter(f => f.includes(path.sep + 'releases' + path.sep));
+    
+    console.log('Component release files found:', releaseFiles);
     
     for (const releaseFile of releaseFiles) {
       const release = this.loadYamlFile<Release>(releaseFile);
+      console.log(`Checking release file ${releaseFile}, uuid: ${release?.uuid}`);
       if (release?.uuid === releaseUuid) {
         // Found the release, now look for collections in the same directory
         const releaseDir = path.dirname(releaseFile);
         const collectionsDir = path.join(releaseDir, 'collections');
         
+        console.log('Release found! Collections dir:', collectionsDir);
+        console.log('Collections dir exists:', fs.existsSync(collectionsDir));
+        
         if (fs.existsSync(collectionsDir)) {
           const collectionFiles = this.findFiles(collectionsDir, /\.yaml$/);
-          return collectionFiles
+          console.log('Collection files found:', collectionFiles);
+          const collections = collectionFiles
             .map(file => this.loadYamlFile<Collection>(file))
             .filter((c): c is Collection => c !== null)
             .sort((a, b) => (a.version || 0) - (b.version || 0));
+          console.log('Loaded collections:', collections);
+          return collections;
         }
       }
     }
     
+    console.log('No collections found for release');
     return [];
   }
 
