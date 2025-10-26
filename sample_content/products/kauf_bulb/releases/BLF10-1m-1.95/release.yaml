@@ -1,0 +1,17 @@
+uuid: 9485fbc9-aa7d-4c26-95c9-d5a8ccb1c073
+product: 8ab3c557-7f36-4ebd-a593-026c28337630
+productName: Kauf Bulb
+version: BLF10-1m-1.95
+createdDate: '2025-10-16T19:26:57Z'
+releaseDate: '2025-10-16T19:26:57Z'
+preRelease: false
+identifiers:
+- idType: TEI
+  idValue: urn:tei:asin:demo.rearmhq.com:B09D6HR559
+- idType: TEI
+  idValue: urn:tei:uuid:demo.rearmhq.com:9485fbc9-aa7d-4c26-95c9-d5a8ccb1c073
+components:
+- uuid: adc0909a-3039-47eb-82ba-7686767c0d52
+  release: 7a7fa4da-bf9b-478f-b934-2fe9e0fc317c
+#- uuid: 35218a8a-7e08-4502-8165-fa2b7a4a0b8a
+#  release: fd327965-a46b-42a1-85ad-a31468100e2b

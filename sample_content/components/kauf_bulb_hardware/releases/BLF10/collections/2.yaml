@@ -1,0 +1,20 @@
+uuid: 7a7fa4da-bf9b-478f-b934-2fe9e0fc317c
+version: 2
+date: '2025-10-16T19:09:28Z'
+belongsTo: COMPONENT_RELEASE
+updateReason:
+  type: ARTIFACT_ADDED
+  comment: 
+artifacts:
+- uuid: 173cedd7-fabb-4d3a-9315-7d7465d236b6
+  name: BLF-10-1m-HBOM
+  type: BOM
+  distributionTypes: []
+  formats:
+  - mimeType: vnd.cyclonedx+json
+    description: External Artifact
+    url: https://raw.githubusercontent.com/taleodor/kauf-bulb-boms/refs/heads/main/blf10_hbom.json
+    signatureUrl: 
+    checksums:
+    - algType: SHA3-256
+      algValue: 05ca5f89a206f5863ae3327d52daed8b760a91c3ce465708447bd3499c4492fe
