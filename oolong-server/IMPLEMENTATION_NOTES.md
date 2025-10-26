@@ -87,8 +87,23 @@ Query methods support filtering by identifier type and value:
 ## Content Directory
 The default content directory is `src/content/`, but it's currently gitignored (except for `placeholder.md`). The actual content is copied from `sample_content/` for development.
 
+## Configuration
+
+### Environment Variables
+
+- **`API_VERSION`** (default: `v0.2.0-beta.2`) - Version prefix for all API endpoints
+  - Example: With default value, endpoints become `/v0.2.0-beta.2/products`
+- **`PORT`** (default: `3000`) - Server port
+- **`CONTENT_DIR`** (optional) - Custom path to content directory (defaults to `src/content`)
+
+Create a `.env` file based on `.env.example` to customize these values.
+
 ## Testing
 To test the implementation:
 1. Copy content from `sample_content/` to `src/content/`
 2. Start the server: `npm run start:dev`
-3. Access the API endpoints to retrieve products, components, releases, and collections
+3. Access the API endpoints with version prefix:
+   - `GET /v0.2.0-beta.2/products`
+   - `GET /v0.2.0-beta.2/product/{uuid}`
+   - `GET /v0.2.0-beta.2/product/{uuid}/releases`
+   - etc.
