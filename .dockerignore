@@ -1,0 +1,35 @@
+# Dependencies
+oolong-server/node_modules
+oolong-server/dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+oolong-server/coverage
+oolong-server/test
+
+# Build artifacts
+oolong-server/dist
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Misc
+*.md
+!oolong-server/README.md
