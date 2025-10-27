@@ -34,8 +34,10 @@ It is possible to mount the content directory to the container and use it as a v
 
 ## Generation from TEA OpenAPI Specification
 
+```bash
 npx @openapitools/openapi-generator-cli version-manager set 7.16.0
 npx @openapitools/openapi-generator-cli generate -i spec/openapi.yaml -g typescript-nestjs-server -o oolong-server/src/generated-nest/
+```
 
 ## Install Dependencies Locally
 
