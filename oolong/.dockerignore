@@ -32,5 +32,3 @@ oolong-server/dist
 
 # Misc
 *.md
-!oolong-server/README.md
-helm-chart

@@ -64,12 +64,12 @@ Both configurations:
 
 ```bash
 npx @openapitools/openapi-generator-cli version-manager set 7.16.0
-npx @openapitools/openapi-generator-cli generate -i spec/openapi.yaml -g typescript-nestjs-server -o oolong-server/src/generated-nest/
+npx @openapitools/openapi-generator-cli generate -i tea-spec/openapi.yaml -g typescript-nestjs-server -o oolong-oolong-server/src/generated-nest/
 ```
 
 ## Install Dependencies Locally
 
-cd oolong-server/src/generated-nest
+cd oolong/oolong-server/src/generated-nest
 npm ci --ignore-scripts
 
 cd ../../

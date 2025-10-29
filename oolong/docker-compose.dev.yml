@@ -6,7 +6,7 @@ services:
     ports:
       - "3005:3000"
     volumes:
-      - ./content:/app/src/content
+      - ./oolong/content:/app/src/content
     environment:
       - NODE_ENV=development
       - API_VERSION=v0.2.0-beta.2
