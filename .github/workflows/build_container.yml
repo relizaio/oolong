@@ -48,7 +48,7 @@ jobs:
           helm_chart_name: oolong
           reliza_api_id: ${{ secrets.RELIZA_OOLONG_HELM_API_ID }}
           reliza_api_key: ${{ secrets.RELIZA_OOLONG_HELM_API_KEY }}
-          path: helm-chart/oolong
+          path: helm-chart
           push_to_rearm: 'true'
           rearm_api_id: ${{ secrets.REARM_OOLONG_HELM_API_ID }}
           rearm_api_key: ${{ secrets.REARM_OOLONG_HELM_API_KEY }}
