@@ -32,6 +32,34 @@ docker run -p 3000:3000 \
 
 It is possible to mount the content directory to the container and use it as a volume. This way, you can update the content directory and the container will use the updated content.
 
+## Run with Docker Compose
+
+### Production Mode
+
+Use the pre-built image from the registry:
+
+```bash
+docker-compose up -d
+```
+
+This will run the server on `http://localhost:3005` using the image from `registry.relizahub.com/library/oolong-server`.
+
+### Development Mode
+
+Build and run from local Dockerfile with development settings:
+
+```bash
+docker-compose -f docker-compose.dev.yml up -d --build
+```
+
+This will build the image locally and run with `NODE_ENV=development`.
+
+Both configurations:
+- Mount the `./content` directory to serve TEA content
+- Run on port `3005` (mapped to container port `3000`)
+- Set `API_VERSION=v0.2.0-beta.2`
+- Set `SERVER_HOST=http://localhost:3005`
+
 ## Generation from TEA OpenAPI Specification
 
 ```bash
