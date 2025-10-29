@@ -1,0 +1,8 @@
+FROM node:24.10.0-alpine3.22@sha256:775ba24d35a13e74dedce1d2af4ad510337b68d8e22be89e0ce2ccc299329083 AS builder
+WORKDIR /app
+COPY oolong-server/package*.json ./
+RUN npm ci --ignore-scripts
+COPY oolong-server/ ./
+RUN mkdir /sbom && npm install -g @cyclonedx/cdxgen@11.11.0 --ignore-scripts
+RUN cdxgen -t npm --lifecycle build -o /sbom/sbom.json
+# note that we're not building sbom on generated nest as it's a subset of the main sbom
