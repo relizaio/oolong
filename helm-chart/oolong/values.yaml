@@ -1,0 +1,75 @@
+# Default values for oolong chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image: registry.relizahub.com/library/oolong-server:25.10.1@sha256:a9e15babcc04d3fa4f2931822f8dc380c042e1d60f97e5e7b80b0f3395a52513
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 10001
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 10001
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Persistent Volume Claim
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 2Gi
+  storageClass: ""
+
+# Environment variables
+env:
+  API_VERSION: "v0.2.0-beta.2"
+  SERVER_HOST: "http://localhost:3000"
+
+# Health check configuration
+healthcheck:
+  enabled: true
+  path: "./well-known/tea"
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 10
+  successThreshold: 1
+  failureThreshold: 3
+
+# Traefik ingress configuration
+useTraefikLe: false
+traefikBehindLb: false
+ingressHost: oolong.localhost
+servicePort: 3000

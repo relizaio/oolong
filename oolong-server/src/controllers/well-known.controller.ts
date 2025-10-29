@@ -17,7 +17,7 @@ export class WellKnownController {
     const version = apiVersion.startsWith('v') ? apiVersion.substring(1) : apiVersion;
     
     // Get server host from environment
-    const serverHost = process.env.SERVER_HOST || 'https://demo.rearmhq.com/tea';
+    const serverHost = process.env.SERVER_HOST || 'http://localhost:3000';
     
     return {
       endpoints: [

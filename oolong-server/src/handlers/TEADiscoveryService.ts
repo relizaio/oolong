@@ -33,7 +33,7 @@ export class TEADiscoveryService implements TEADiscoveryApi {
     // Get server info from environment (same as .well-known/tea)
     const apiVersion = process.env.API_VERSION || 'v0.2.0-beta.2';
     const version = apiVersion.startsWith('v') ? apiVersion.substring(1) : apiVersion;
-    const serverHost = process.env.SERVER_HOST || 'https://demo.rearmhq.com/tea';
+    const serverHost = process.env.SERVER_HOST || 'http://localhost:3000';
     
     // Create discovery info for each matching release
     const discoveryInfos: DiscoveryInfo[] = matchingReleases.map(release => ({

@@ -33,3 +33,23 @@ jobs:
           rearm_enable_public_cosign_sigstore: 'true'
           rearm_enable_codeql: 'true'
           rearm_codeql_language: 'javascript'
+  build-oolong-helm:
+    permissions:
+      contents: write
+    name: Build And Push Oolong Helm Chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: RelizaHub Build And Submit Oolong Helm Chart metadata action
+        uses: relizaio/reliza-helm-action@da27aba62c724a3ab4116d96c3fe43bb50d807a7 # v3.11
+        with:
+          registry_username: ${{ secrets.DOCKER_LOGIN }}
+          registry_password: ${{ secrets.DOCKER_TOKEN }}
+          registry_host: registry.relizahub.com/library
+          helm_chart_name: oolong
+          reliza_api_id: ${{ secrets.RELIZA_OOLONG_HELM_API_ID }}
+          reliza_api_key: ${{ secrets.RELIZA_OOLONG_HELM_API_KEY }}
+          path: helm-chart/oolong
+          push_to_rearm: 'true'
+          rearm_api_id: ${{ secrets.REARM_OOLONG_HELM_API_ID }}
+          rearm_api_key: ${{ secrets.REARM_OOLONG_HELM_API_KEY }}
+          rearm_enable_public_cosign_sigstore: 'true'

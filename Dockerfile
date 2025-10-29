@@ -12,7 +12,7 @@ ARG GIT_BRANCH=git_branch_undefined
 ARG VERSION=not_versioned
 
 RUN mkdir /app && echo "version=$VERSION" > /app/version && echo "commit=$GIT_COMMIT" >> /app/version \
-    && echo "branch=$GIT_BRANCH" >> /app/version && addgroup -S apprunner && adduser -S apprunner -G apprunner \
+    && echo "branch=$GIT_BRANCH" >> /app/version && addgroup -g 10001 -S apprunner && adduser -u 10001 -S apprunner -G apprunner \
     && chown apprunner:apprunner -R /app
 
 WORKDIR /app
@@ -28,7 +28,7 @@ USER apprunner
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV API_VERSION=v0.2.0-beta.2
-ENV SERVER_HOST=https://demo.rearmhq.com/tea
+ENV SERVER_HOST=http://localhost:3000
 
 # Expose the port
 EXPOSE 3000

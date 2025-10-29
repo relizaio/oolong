@@ -1,0 +1,38 @@
+{{- if .Values.useTraefikLe}}
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "oolong.fullname" . }}-websecure-ingressroute
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "verdoolongaccio.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`{{ .Values.ingressHost}}`)
+    kind: Rule
+    services:
+    - name: {{ include "oolong.fullname" . }}
+      port: {{ .Values.servicePort }}
+  tls:
+    certResolver: le
+{{- end}}
+{{- if .Values.traefikBehindLb}}
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "oolong.fullname" . }}-web-ingressroute
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "verdoolongaccio.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`{{ .Values.ingressHost }}`)
+    kind: Rule
+    services:
+    - name: {{ include "oolong.fullname" . }}
+      port: {{ .Values.servicePort }}
+{{- end}}

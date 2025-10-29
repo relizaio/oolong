@@ -1,0 +1,6 @@
+Oolong installed
+
+{{- if .Values.useTraefikLe }}
+Oolong is accessible via Traefik at:
+   https://{{ .Values.ingressHost }}
+{{- end }}
