@@ -80,5 +80,12 @@ npm ci --ignore-scripts
 npm run start:dev
 ```
 
+## Installation via helm chart
+
+### Using local chart (development mode)
+```bash
+helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong
+```
+
 ## More Documentation
 Refer to [IMPLEMENTATION_NOTES.md](oolong/oolong-server/IMPLEMENTATION_NOTES.md) for more details.
