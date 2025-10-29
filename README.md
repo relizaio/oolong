@@ -87,5 +87,11 @@ npm run start:dev
 helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong
 ```
 
+Sample installation on k3d:
+
+```bash
+helm upgrade --install --create-namespace -n oolong --set useTraefikDevelopment=true --set env.SERVER_HOST='http://oolong.localhost:8003' oolong helm-chart/oolong
+```
+
 ## More Documentation
 Refer to [IMPLEMENTATION_NOTES.md](oolong/oolong-server/IMPLEMENTATION_NOTES.md) for more details.
