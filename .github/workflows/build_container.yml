@@ -1,0 +1,35 @@
+on:
+  push:
+    branches:
+      - '*'
+    tags-ignore:
+      - '*'
+
+name: Build Oolong Container Image And Submit Metadata To Reliza Hub and ReARM Demo
+
+jobs:
+  build-oolong:
+    permissions:
+      id-token: write
+    name: Build And Push Oolong Server Container Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: RelizaHub Build And Submit Oolong Release
+        uses: relizaio/reliza-docker-action@9144a07ade5fca8699fbee913e238ced60f6501f # v3.11
+        with:
+          registry_username: ${{ secrets.DOCKER_LOGIN }}
+          registry_password: ${{ secrets.DOCKER_TOKEN }}
+          registry_host: registry.relizahub.com
+          image_namespace: registry.relizahub.com/library
+          image_name: oolong-server
+          reliza_api_id: ${{ secrets.RELIZA_OOLONG_API_ID }}
+          reliza_api_key: ${{ secrets.RELIZA_OOLONG_API_KEY }}
+          path: .
+          enable_sbom: 'false'
+          push_to_rearm: 'true'
+          rearm_api_id: ${{ secrets.REARM_OOLONG_API_ID }}
+          rearm_api_key: ${{ secrets.REARM_OOLONG_API_KEY }}
+          source_code_sbom_type: 'npm'
+          rearm_enable_public_cosign_sigstore: 'true'
+          rearm_enable_codeql: 'true'
+          rearm_codeql_language: 'javascript'
