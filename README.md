@@ -10,9 +10,19 @@ This project is a lightweight implementation of [Transparency Exchange API](http
 
 If you are looking for a full-featured TEA server implementation with UI and built-in artifact storage, please refer to [ReARM](https://github.com/reliza/rearm).
 
-## Build Container Image
+## Content Management
 
-The provided Dockerfile will package content from `content/` directory. We provided some `sample_content/` directory for development and testing purposes. You can copy the content from `sample_content/` to `content/` directory.
+We provided  `oolong/sample_content/` directory for development and testing purposes. 
+
+Oolong uses `oolong/oolong-server/src/content/` directory to serve TEA content (this is under .gitignore). You can copy the content from `oolong/sample_content/` to `oolong/oolong-server/src/content/` directory directly when running via npm.
+
+The provided Dockerfile will package content from `oolong/content/` directory. This way the content will be baked into the container image.
+
+Alternatively, you can mount the content with docker-compose or using git pod in the helm chart installation. If using git pod option, the content will be synchronized with the git repository at the specified interval (currently, only public git repositories are supported).
+
+For content management, use [ReARM CLI](https://github.com/relizaio/rearm-cli). See documentation for oolong content management commands [here](https://github.com/relizaio/rearm-cli/blob/main/docs/oolong.md).
+
+## Build Container Image
 
 ```bash
 cd oolong

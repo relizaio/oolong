@@ -97,7 +97,6 @@ The default content directory is `src/content/`, but it's currently gitignored (
 - **`SERVER_HOST`** (default: `http://localhost:3000`) - Public URL for the TEA API
   - Used in the `/.well-known/tea` discovery endpoint
 - **`PORT`** (default: `3000`) - Server port
-- **`CONTENT_DIR`** (optional) - Custom path to content directory (defaults to `src/content`)
 
 Create a `.env` file based on `.env.example` to customize these values.
 
