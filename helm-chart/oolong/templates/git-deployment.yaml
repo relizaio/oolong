@@ -1,0 +1,75 @@
+{{- if and .Values.gitPod.enabled .Values.persistence.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "oolong.fullname" . }}-git
+  labels:
+    {{- include "oolong.labels" . | nindent 4 }}
+    app.kubernetes.io/component: git
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "oolong.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: git
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "oolong.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: git
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: git
+          securityContext:
+            {{- toYaml .Values.gitPod.securityContext | nindent 12 }}
+          image: "{{ .Values.gitPod.image }}"
+          imagePullPolicy: {{ .Values.gitPod.imagePullPolicy }}
+          {{- if .Values.gitPod.command }}
+          command:
+            {{- toYaml .Values.gitPod.command | nindent 12 }}
+          {{- end }}
+          {{- if .Values.gitPod.args }}
+          args:
+            {{- toYaml .Values.gitPod.args | nindent 12 }}
+          {{- end }}
+          {{- if .Values.gitPod.resources }}
+          resources:
+            {{- toYaml .Values.gitPod.resources | nindent 12 }}
+          {{- end }}
+          {{- if .Values.gitPod.env }}
+          env:
+            {{- range $key, $value := .Values.gitPod.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          volumeMounts:
+            - name: oolong-content
+              mountPath: {{ .Values.gitPod.mountPath }}
+      volumes:
+        - name: oolong-content
+          persistentVolumeClaim:
+            claimName: {{ include "oolong.fullname" . }}-content
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

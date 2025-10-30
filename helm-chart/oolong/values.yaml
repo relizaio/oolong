@@ -53,6 +53,36 @@ persistence:
   size: 2Gi
   storageClass: ""
 
+# Git pod configuration
+gitPod:
+  enabled: false
+  image: alpine/git:2.49.1@sha256:94b40c2135951103e0c5c7db07ae4cf6e935644a717e05d17f0c540db47683af
+  imagePullPolicy: IfNotPresent
+  # Mount path for the shared volume
+  mountPath: /content
+  # Resources for the git pod
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 50m
+    #   memory: 64Mi
+  # Security context for git pod
+  securityContext:
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 10001
+  # Command to run (empty means container default)
+  command: ["sleep", "infinity"]
+  # Args to pass to the command
+  args: []
+  # Environment variables for git pod
+  env: {}
+
 # Environment variables
 env:
   API_VERSION: "v0.2.0-beta.2"
