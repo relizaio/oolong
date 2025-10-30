@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { Product, ProductRelease, Component, Release, Collection, Artifact } from '../generated-nest/models';
+import { logger } from './logger';
 
 export class ContentLoader {
   private readonly contentDir: string;
@@ -9,9 +10,9 @@ export class ContentLoader {
   constructor(contentDir?: string) {
     // Default to src/content, but allow override
     this.contentDir = contentDir || path.join(__dirname, '../../src/content');
-    console.log('ContentLoader initialized with directory:', this.contentDir);
-    console.log('__dirname:', __dirname);
-    console.log('Directory exists:', fs.existsSync(this.contentDir));
+    logger.debug('ContentLoader initialized with directory:', this.contentDir);
+    logger.debug('__dirname:', __dirname);
+    logger.debug('Directory exists:', fs.existsSync(this.contentDir));
   }
 
   /**
@@ -26,7 +27,7 @@ export class ContentLoader {
       const content = fs.readFileSync(fullPath, 'utf8');
       return yaml.load(content) as T;
     } catch (error) {
-      console.error(`Error loading YAML file ${filePath}:`, error);
+      logger.error(`Error loading YAML file ${filePath}:`, error);
       return null;
     }
   }
@@ -62,15 +63,15 @@ export class ContentLoader {
    */
   loadAllProducts(): Product[] {
     const productsDir = path.join(this.contentDir, 'products');
-    console.log('Loading products from:', productsDir);
-    console.log('Products dir exists:', fs.existsSync(productsDir));
+    logger.debug('Loading products from:', productsDir);
+    logger.debug('Products dir exists:', fs.existsSync(productsDir));
     const productFiles = this.findFiles(productsDir, /^product\.yaml$/);
-    console.log('Found product files:', productFiles);
+    logger.debug('Found product files:', productFiles);
     
     const products = productFiles
       .map(file => this.loadYamlFile<Product>(file))
       .filter((p): p is Product => p !== null);
-    console.log('Loaded products:', products);
+    logger.debug('Loaded products:', products);
     
     return products;
   }
@@ -88,12 +89,12 @@ export class ContentLoader {
    */
   loadAllProductReleases(): ProductRelease[] {
     const productsDir = path.join(this.contentDir, 'products');
-    console.log('Loading product releases from:', productsDir);
+    logger.debug('Loading product releases from:', productsDir);
     const allReleaseFiles = this.findFiles(productsDir, /^release\.yaml$/);
-    console.log('All release.yaml files found:', allReleaseFiles);
+    logger.debug('All release.yaml files found:', allReleaseFiles);
     const releaseFiles = allReleaseFiles
       .filter(f => f.includes(path.sep + 'releases' + path.sep));
-    console.log('Found product release files:', releaseFiles);
+    logger.debug('Found product release files:', releaseFiles);
     
     const releases = releaseFiles
       .map(file => {
@@ -117,7 +118,7 @@ export class ContentLoader {
         return release;
       })
       .filter((r): r is ProductRelease => r !== null);
-    console.log('Loaded product releases:', releases);
+    logger.debug('Loaded product releases:', releases);
     
     return releases;
   }
@@ -135,10 +136,10 @@ export class ContentLoader {
    */
   loadProductReleasesByProductUuid(productUuid: string): ProductRelease[] {
     const releases = this.loadAllProductReleases();
-    console.log(`Filtering releases for product ${productUuid}`);
-    console.log('All releases:', releases.map(r => ({ uuid: r.uuid, product: r.product })));
+    logger.debug(`Filtering releases for product ${productUuid}`);
+    logger.debug('All releases:', releases.map(r => ({ uuid: r.uuid, product: r.product })));
     const filtered = releases.filter(r => r.product === productUuid);
-    console.log('Filtered releases:', filtered);
+    logger.debug('Filtered releases:', filtered);
     return filtered;
   }
 
@@ -216,28 +217,28 @@ export class ContentLoader {
   loadCollectionsByComponentReleaseUuid(releaseUuid: string): Collection[] {
     const componentsDir = path.join(this.contentDir, 'components');
     
-    console.log(`Loading collections for component release: ${releaseUuid}`);
+    logger.debug(`Loading collections for component release: ${releaseUuid}`);
     
     // Find the release directory
     const releaseFiles = this.findFiles(componentsDir, /^release\.yaml$/)
       .filter(f => f.includes(path.sep + 'releases' + path.sep));
     
-    console.log('Component release files found:', releaseFiles);
+    logger.debug('Component release files found:', releaseFiles);
     
     for (const releaseFile of releaseFiles) {
       const release = this.loadYamlFile<Release>(releaseFile);
-      console.log(`Checking release file ${releaseFile}, uuid: ${release?.uuid}`);
+      logger.debug(`Checking release file ${releaseFile}, uuid: ${release?.uuid}`);
       if (release?.uuid === releaseUuid) {
         // Found the release, now look for collections in the same directory
         const releaseDir = path.dirname(releaseFile);
         const collectionsDir = path.join(releaseDir, 'collections');
         
-        console.log('Release found! Collections dir:', collectionsDir);
-        console.log('Collections dir exists:', fs.existsSync(collectionsDir));
+        logger.debug('Release found! Collections dir:', collectionsDir);
+        logger.debug('Collections dir exists:', fs.existsSync(collectionsDir));
         
         if (fs.existsSync(collectionsDir)) {
           const collectionFiles = this.findFiles(collectionsDir, /\.yaml$/);
-          console.log('Collection files found:', collectionFiles);
+          logger.debug('Collection files found:', collectionFiles);
           const collections = collectionFiles
             .map(file => {
               const collection = this.loadYamlFile<any>(file);
@@ -271,13 +272,13 @@ export class ContentLoader {
             })
             .filter((c): c is Collection => c !== null)
             .sort((a, b) => (a.version || 0) - (b.version || 0));
-          console.log('Loaded collections:', collections);
+          logger.debug('Loaded collections:', collections);
           return collections;
         }
       }
     }
     
-    console.log('No collections found for release');
+    logger.debug('No collections found for release');
     return [];
   }
 
@@ -295,28 +296,28 @@ export class ContentLoader {
   loadCollectionsByProductReleaseUuid(releaseUuid: string): Collection[] {
     const productsDir = path.join(this.contentDir, 'products');
     
-    console.log(`Loading collections for product release: ${releaseUuid}`);
+    logger.debug(`Loading collections for product release: ${releaseUuid}`);
     
     // Find the release directory
     const releaseFiles = this.findFiles(productsDir, /^release\.yaml$/)
       .filter(f => f.includes(path.sep + 'releases' + path.sep));
     
-    console.log('Product release files found:', releaseFiles);
+    logger.debug('Product release files found:', releaseFiles);
     
     for (const releaseFile of releaseFiles) {
       const release = this.loadYamlFile<ProductRelease>(releaseFile);
-      console.log(`Checking release file ${releaseFile}, uuid: ${release?.uuid}`);
+      logger.debug(`Checking release file ${releaseFile}, uuid: ${release?.uuid}`);
       if (release?.uuid === releaseUuid) {
         // Found the release, now look for collections in the same directory
         const releaseDir = path.dirname(releaseFile);
         const collectionsDir = path.join(releaseDir, 'collections');
         
-        console.log('Release found! Collections dir:', collectionsDir);
-        console.log('Collections dir exists:', fs.existsSync(collectionsDir));
+        logger.debug('Release found! Collections dir:', collectionsDir);
+        logger.debug('Collections dir exists:', fs.existsSync(collectionsDir));
         
         if (fs.existsSync(collectionsDir)) {
           const collectionFiles = this.findFiles(collectionsDir, /\.yaml$/);
-          console.log('Collection files found:', collectionFiles);
+          logger.debug('Collection files found:', collectionFiles);
           const collections = collectionFiles
             .map(file => {
               const collection = this.loadYamlFile<any>(file);
@@ -350,13 +351,13 @@ export class ContentLoader {
             })
             .filter((c): c is Collection => c !== null)
             .sort((a, b) => (a.version || 0) - (b.version || 0));
-          console.log('Loaded collections:', collections);
+          logger.debug('Loaded collections:', collections);
           return collections;
         }
       }
     }
     
-    console.log('No collections found for release');
+    logger.debug('No collections found for release');
     return [];
   }
 
@@ -368,7 +369,7 @@ export class ContentLoader {
     const artifactFile = path.join(artifactsDir, `${uuid}.yaml`);
     
     if (!fs.existsSync(artifactFile)) {
-      console.log(`Artifact file not found: ${artifactFile}`);
+      logger.debug(`Artifact file not found: ${artifactFile}`);
       return null;
     }
     

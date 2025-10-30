@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { TEAProductApi } from '../generated-nest/api';
 import { IdentifierType, PaginatedProductResponse, Product } from '../generated-nest/models';
 import { ContentLoader } from '../utils/content-loader';
+import { logger } from '../utils/logger';
 
 @Injectable()
 export class TEAProductService implements TEAProductApi {
@@ -25,10 +26,10 @@ export class TEAProductService implements TEAProductApi {
     const offset = pageOffset ?? 0;
     const size = pageSize ?? 100;
     
-    console.log('queryTeaProducts called with:', { pageOffset, pageSize, idType, idValue });
-    console.log('Using defaults:', { offset, size });
+    logger.debug('queryTeaProducts called with:', { pageOffset, pageSize, idType, idValue });
+    logger.debug('Using defaults:', { offset, size });
     let products = this.contentLoader.loadAllProducts();
-    console.log('Total products loaded:', products.length);
+    logger.debug('Total products loaded:', products.length);
 
     // Filter by identifier if provided
     if (idType && idValue) {
@@ -37,16 +38,16 @@ export class TEAProductService implements TEAProductApi {
           id.idType === idType && id.idValue === idValue
         )
       );
-      console.log('Products after filtering:', products.length);
+      logger.debug('Products after filtering:', products.length);
     }
 
     // Calculate pagination
     const totalCount = products.length;
     const start = offset * size;
     const end = start + size;
-    console.log('Pagination:', { start, end, totalCount });
+    logger.debug('Pagination:', { start, end, totalCount });
     const paginatedProducts = products.slice(start, end);
-    console.log('Paginated products:', paginatedProducts.length);
+    logger.debug('Paginated products:', paginatedProducts.length);
 
     return {
       timestamp: new Date().toISOString(),

@@ -87,6 +87,7 @@ gitPod:
 env:
   API_VERSION: "v0.2.0-beta.2"
   SERVER_HOST: "http://localhost:3000"
+  DEBUG_MODE: "false"  # Set to "true" to enable verbose debug logging
 
 # Health check configuration
 healthcheck:

@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { TEAProductReleaseApi } from '../generated-nest/api';
 import { Collection, IdentifierType, PaginatedProductReleaseResponse, ProductRelease } from '../generated-nest/models';
 import { ContentLoader } from '../utils/content-loader';
+import { logger } from '../utils/logger';
 
 @Injectable()
 export class TEAProductReleaseService implements TEAProductReleaseApi {
@@ -19,8 +20,8 @@ export class TEAProductReleaseService implements TEAProductReleaseApi {
     }
     
     const collections = this.contentLoader.loadCollectionsByProductReleaseUuid(uuid);
-    console.log('getCollectionForProductRelease called with:', { uuid, collectionVersion, type: typeof collectionVersion });
-    console.log('Available collections:', collections.map(c => ({ version: c.version, type: typeof c.version })));
+    logger.debug('getCollectionForProductRelease called with:', { uuid, collectionVersion, type: typeof collectionVersion });
+    logger.debug('Available collections:', collections.map(c => ({ version: c.version, type: typeof c.version })));
     
     // Convert collectionVersion to number if it's a string (route params are strings by default)
     const versionNumber = typeof collectionVersion === 'string' ? parseInt(collectionVersion, 10) : collectionVersion;
