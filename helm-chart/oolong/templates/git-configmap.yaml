@@ -1,0 +1,63 @@
+{{- if and .Values.gitPod.enabled .Values.persistence.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "oolong.fullname" . }}-git-script
+  labels:
+    {{- include "oolong.labels" . | nindent 4 }}
+    app.kubernetes.io/component: git
+data:
+  git-sync.sh: |
+    #!/bin/sh
+    set -e
+
+    echo "Starting Git sync script..."
+
+    # Check if repository URL is provided
+    if [ -z "$GIT_REPO_URL" ]; then
+      echo "ERROR: GIT_REPO_URL environment variable is not set"
+      exit 1
+    fi
+
+    CONTENT_DIR="${CONTENT_DIR:-/content}"
+    SYNC_INTERVAL="${SYNC_INTERVAL:-60}"
+    GIT_BRANCH="${GIT_BRANCH:-main}"
+
+    echo "Configuration:"
+    echo "  Repository: $GIT_REPO_URL"
+    echo "  Content Directory: $CONTENT_DIR"
+    echo "  Branch: $GIT_BRANCH"
+    echo "  Sync Interval: ${SYNC_INTERVAL}s"
+
+    # Set safe.directory in global config (writes to $HOME/.gitconfig which is now writable)
+    echo "Configuring git safe directory..."
+    git config --global --add safe.directory "$CONTENT_DIR"
+
+    # Initial clone or use existing repository
+    if [ ! -d "$CONTENT_DIR/.git" ]; then
+      echo "Cloning repository..."
+      git clone --branch "$GIT_BRANCH" "$GIT_REPO_URL" "$CONTENT_DIR"
+      echo "Repository cloned successfully"
+    else
+      echo "Repository already exists, skipping clone"
+      cd "$CONTENT_DIR"
+      git fetch origin
+      git checkout "$GIT_BRANCH"
+      git reset --hard "origin/$GIT_BRANCH"
+    fi
+
+    cd "$CONTENT_DIR"
+
+    echo "Starting sync loop..."
+    while true; do
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - Pulling latest changes..."
+      
+      if git pull origin "$GIT_BRANCH"; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Pull successful"
+      else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Pull failed, will retry"
+      fi
+      
+      sleep "$SYNC_INTERVAL"
+    done
+{{- end }}

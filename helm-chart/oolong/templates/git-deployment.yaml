@@ -34,32 +34,45 @@ spec:
             {{- toYaml .Values.gitPod.securityContext | nindent 12 }}
           image: "{{ .Values.gitPod.image }}"
           imagePullPolicy: {{ .Values.gitPod.imagePullPolicy }}
-          {{- if .Values.gitPod.command }}
-          command:
-            {{- toYaml .Values.gitPod.command | nindent 12 }}
-          {{- end }}
-          {{- if .Values.gitPod.args }}
-          args:
-            {{- toYaml .Values.gitPod.args | nindent 12 }}
-          {{- end }}
+          command: ["/bin/sh"]
+          args: ["/scripts/git-sync.sh"]
           {{- if .Values.gitPod.resources }}
           resources:
             {{- toYaml .Values.gitPod.resources | nindent 12 }}
           {{- end }}
-          {{- if .Values.gitPod.env }}
           env:
+            - name: HOME
+              value: "/tmp/git-home"
+            - name: GIT_REPO_URL
+              value: {{ .Values.gitPod.repoUrl | quote }}
+            - name: GIT_BRANCH
+              value: {{ .Values.gitPod.branch | default "main" | quote }}
+            - name: CONTENT_DIR
+              value: {{ .Values.gitPod.mountPath | quote }}
+            - name: SYNC_INTERVAL
+              value: {{ .Values.gitPod.syncInterval | default "60" | quote }}
             {{- range $key, $value := .Values.gitPod.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-          {{- end }}
           volumeMounts:
             - name: oolong-content
               mountPath: {{ .Values.gitPod.mountPath }}
+            - name: git-script
+              mountPath: /scripts
+              readOnly: true
+            - name: git-home
+              mountPath: /tmp/git-home
       volumes:
         - name: oolong-content
           persistentVolumeClaim:
             claimName: {{ include "oolong.fullname" . }}-content
+        - name: git-script
+          configMap:
+            name: {{ include "oolong.fullname" . }}-git-script
+            defaultMode: 0700
+        - name: git-home
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

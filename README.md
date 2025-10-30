@@ -93,5 +93,27 @@ Sample installation on k3d:
 helm upgrade --install --create-namespace -n oolong --set useTraefikDevelopment=true --set env.SERVER_HOST='http://oolong.localhost:8003' oolong helm-chart/oolong
 ```
 
+### Git Pod Configuration
+
+Enable automatic Git synchronization to populate content from a Git repository. Note, currently, only public repositories are supported.
+
+```bash
+helm upgrade --install --create-namespace -n oolong \
+  --set gitPod.enabled=true \
+  --set gitPod.repoUrl='https://github.com/your-org/your-repo.git' \
+  --set gitPod.branch='main' \
+  --set gitPod.syncInterval='60' \
+  oolong helm-chart/oolong
+```
+
+**Configuration options:**
+- `gitPod.enabled` - Enable/disable Git pod (default: `false`)
+- `gitPod.repoUrl` - Git repository URL (required when enabled)
+- `gitPod.branch` - Git branch to sync (default: `main`)
+- `gitPod.syncInterval` - Sync interval in seconds (default: `60`)
+- `gitPod.mountPath` - Mount path for content (default: `/content`)
+
+The Git pod will clone the repository and perform `git pull` at the specified interval, keeping the content synchronized with the remote repository.
+
 ## More Documentation
 Refer to [IMPLEMENTATION_NOTES.md](oolong/oolong-server/IMPLEMENTATION_NOTES.md) for more details.

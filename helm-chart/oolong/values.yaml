@@ -68,6 +68,10 @@ gitPod:
     # requests:
     #   cpu: 50m
     #   memory: 64Mi
+  # Git repository configuration
+  repoUrl: ""  # Git repository URL (required when gitPod.enabled is true)
+  branch: "main"  # Git branch to sync
+  syncInterval: "60"  # Sync interval in seconds
   # Security context for git pod
   securityContext:
     capabilities:
@@ -76,11 +80,7 @@ gitPod:
     readOnlyRootFilesystem: false
     runAsNonRoot: true
     runAsUser: 10001
-  # Command to run (empty means container default)
-  command: ["sleep", "infinity"]
-  # Args to pass to the command
-  args: []
-  # Environment variables for git pod
+  # Additional environment variables for git pod
   env: {}
 
 # Environment variables
