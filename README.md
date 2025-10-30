@@ -93,6 +93,12 @@ Sample installation on k3d:
 helm upgrade --install --create-namespace -n oolong --set useTraefikDevelopment=true --set env.SERVER_HOST='http://oolong.localhost:8003' oolong helm-chart/oolong
 ```
 
+### Using official chart from registry
+
+```bash
+helm upgrade --install --create-namespace -n oolong oolong registry.relizahub.com/library/oolong
+```
+
 ### Git Pod Configuration
 
 Enable automatic Git synchronization to populate content from a Git repository. Note, currently, only public repositories are supported.
