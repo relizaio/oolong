@@ -35,6 +35,7 @@ jobs:
           rearm_codeql_language: 'javascript'
   build-oolong-helm:
     permissions:
+      id-token: write
       contents: write
     name: Build And Push Oolong Helm Chart
     runs-on: ubuntu-latest
