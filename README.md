@@ -61,24 +61,6 @@ Both configurations:
 - Set `API_VERSION=v0.2.0-beta.2`
 - Set `SERVER_HOST=http://localhost:3005`
 
-## Generation from TEA OpenAPI Specification
-
-```bash
-npx @openapitools/openapi-generator-cli version-manager set 7.16.0
-npx @openapitools/openapi-generator-cli generate -i tea-spec/openapi.yaml -g typescript-nestjs-server -o oolong/oolong-server/src/generated-nest/
-```
-
-## Run Locally for Development
-
-```bash
-cd oolong/oolong-server/src/generated-nest
-npm ci --ignore-scripts
-
-cd ../../
-npm ci --ignore-scripts
-
-npm run start:dev
-```
 
 ## Installation via helm chart
 
@@ -120,6 +102,26 @@ helm upgrade --install --create-namespace -n oolong \
 - `gitPod.mountPath` - Mount path for content (default: `/content`)
 
 The Git pod will clone the repository and perform `git pull` at the specified interval, keeping the content synchronized with the remote repository.
+
+
+## Generation from TEA OpenAPI Specification
+
+```bash
+npx @openapitools/openapi-generator-cli version-manager set 7.16.0
+npx @openapitools/openapi-generator-cli generate -i tea-spec/openapi.yaml -g typescript-nestjs-server -o oolong/oolong-server/src/generated-nest/
+```
+
+## Run Locally for Development
+
+```bash
+cd oolong/oolong-server/src/generated-nest
+npm ci --ignore-scripts
+
+cd ../../
+npm ci --ignore-scripts
+
+npm run start:dev
+```
 
 ## More Documentation
 Refer to [IMPLEMENTATION_NOTES.md](oolong/oolong-server/IMPLEMENTATION_NOTES.md) for more details.
