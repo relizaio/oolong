@@ -3,7 +3,7 @@ name: oolong
 description: A Helm chart for Reliza Oolong - a lightweight TEA server implementation
 type: application
 version: 0.0.6
-appVersion: "25.10.3"
+appVersion: "25.10.5"
 keywords:
   - TEA
   - Transparency Exchange API
