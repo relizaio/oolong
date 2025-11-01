@@ -77,7 +77,7 @@ Both configurations:
 ### Using local chart (development mode)
 ```bash
 helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
-    --version 0.0.6
+    --version 0.0.7
 ```
 
 Sample installation on k3d:
@@ -85,14 +85,14 @@ Sample installation on k3d:
 ```bash
 helm upgrade --install --create-namespace -n oolong --set useTraefikDevelopment=true \
     --set env.SERVER_HOST='http://oolong.localhost:8003' oolong helm-chart/oolong \
-    --version 0.0.6
+    --version 0.0.7
 ```
 
 ### Using official chart from registry
 
 ```bash
 helm upgrade --install --create-namespace -n oolong oolong registry.relizahub.com/library/oolong \
-    --version 0.0.6
+    --version 0.0.7
 ```
 
 ### Git Pod Configuration
@@ -106,7 +106,7 @@ helm upgrade --install --create-namespace -n oolong \
   --set gitPod.branch='main' \
   --set gitPod.syncInterval='60' \
   oolong helm-chart/oolong \
-  --version 0.0.6
+  --version 0.0.7
 ```
 
 **Configuration options:**
