@@ -76,19 +76,23 @@ Both configurations:
 
 ### Using local chart (development mode)
 ```bash
-helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong
+helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
+    --version 0.0.6
 ```
 
 Sample installation on k3d:
 
 ```bash
-helm upgrade --install --create-namespace -n oolong --set useTraefikDevelopment=true --set env.SERVER_HOST='http://oolong.localhost:8003' oolong helm-chart/oolong
+helm upgrade --install --create-namespace -n oolong --set useTraefikDevelopment=true \
+    --set env.SERVER_HOST='http://oolong.localhost:8003' oolong helm-chart/oolong \
+    --version 0.0.6
 ```
 
 ### Using official chart from registry
 
 ```bash
-helm upgrade --install --create-namespace -n oolong oolong registry.relizahub.com/library/oolong
+helm upgrade --install --create-namespace -n oolong oolong registry.relizahub.com/library/oolong \
+    --version 0.0.6
 ```
 
 ### Git Pod Configuration
@@ -101,7 +105,8 @@ helm upgrade --install --create-namespace -n oolong \
   --set gitPod.repoUrl='https://github.com/your-org/your-repo.git' \
   --set gitPod.branch='main' \
   --set gitPod.syncInterval='60' \
-  oolong helm-chart/oolong
+  oolong helm-chart/oolong \
+  --version 0.0.6
 ```
 
 **Configuration options:**

@@ -4,7 +4,7 @@
 
 replicaCount: 1
 
-image: registry.relizahub.com/library/oolong-server:25.10.1@sha256:a9e15babcc04d3fa4f2931822f8dc380c042e1d60f97e5e7b80b0f3395a52513
+image: registry.relizahub.com/library/oolong-server:25.10.5@sha256:aab38b3ef6b278d9bedaa41bcf448337db98e18233ce9a0d01a8c15b4dd07fe0
 
 imagePullSecrets: []
 nameOverride: ""
