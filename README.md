@@ -10,6 +10,20 @@ This project is a lightweight implementation of [Transparency Exchange API](http
 
 If you are looking for a full-featured TEA server implementation with UI and built-in artifact storage, please refer to [ReARM](https://github.com/reliza/rearm).
 
+## Live Demo
+Live demo server is currently operating at oolong-demo.rearmhq.com.
+
+I.e., you can access well-known at [https://oolong-demo.rearmhq.com/.well-known/tea](https://oolong-demo.rearmhq.com/.well-known/tea).
+
+Also you can download [ReARM CLI](https://github.com/relizaio/rearm-cli) and try out full flow with TEI urn:tei:asin:oolong-demo.rearmhq.com:B09D6HR559
+
+using 
+
+```bash
+rearm tea full_tea_flow --debug true --tei urn:tei:asin:oolong-demo.rearmhq.com:B09D6HR559
+```
+
+
 ## Content Management
 
 We provided  `oolong/sample_content/` directory for development and testing purposes. 
