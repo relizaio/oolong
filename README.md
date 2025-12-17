@@ -23,6 +23,28 @@ using
 rearm tea full_tea_flow --debug true --tei urn:tei:asin:oolong-demo.rearmhq.com:B09D6HR559
 ```
 
+## Sample Data
+Additional sample data can be found in the [Reliza-Demos/conferences-oolong-content-2025-11](https://github.com/Reliza-Demos/conferences-oolong-content-2025-11) repository.
+
+TEIs with full ReARM CLI commands that can be used against it:
+
+#### Kauf Bulb Demo:
+```bash
+rearm tea full_tea_flow --debug true --tei urn:tei:uuid:oolong-demo.rearmhq.com:9485fbc9-aa7d-4c26-95c9-d5a8ccb1c073
+rearm tea full_tea_flow --debug true --tei urn:tei:asin:oolong-demo.rearmhq.com:B09D6HR559
+```
+
+As shown on OWASP 2025 Global AppSec USA.
+
+#### Apache Log4j Demo:
+```bash
+rearm tea full_tea_flow --debug true --tei urn:tei:purl:oolong-demo.rearmhq.com:pkg:maven/org.apache.logging.log4j/log4j-core@2.25.0
+rearm tea full_tea_flow --debug true --tei urn:tei:uuid:oolong-demo.rearmhq.com:ff08fa6a-1df9-4ab7-b3ec-e02837845a06
+rearm tea full_tea_flow --debug true --tei urn:tei:purl:oolong-demo.rearmhq.com:pkg:github/apache/logging-log4j2
+```
+
+As shown on Open Source SecCon 2025 in Atlanta - video available at [https://www.youtube.com/watch?v=na30ADqKH0c](https://www.youtube.com/watch?v=na30ADqKH0c).
+Slides available [here](https://www.slideshare.net/slideshow/open-source-security-con2025-in-atlanta-transparency-exchange-api-where-to-find-product-sbom/284093812).
 
 ## Content Management
 
