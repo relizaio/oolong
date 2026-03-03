@@ -8,7 +8,7 @@
 
 This project is a lightweight implementation of [Transparency Exchange API](https://github.com/CycloneDX/transparency-exchange-api/) which uses [NestJS](https://nestjs.com/) framework.
 
-If you are looking for a full-featured TEA server implementation with UI and built-in artifact storage, please refer to [ReARM](https://github.com/reliza/rearm).
+If you are looking for a full-featured TEA server implementation with UI and built-in artifact storage, please refer to [ReARM](https://github.com/relizaio/rearm).
 
 ## Live Demo
 Live demo server is currently operating at oolong-demo.rearmhq.com.
