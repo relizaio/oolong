@@ -461,7 +461,11 @@ export class ContentStore {
       distributions = raw.distributions.map((item) => {
         if (!isRecord(item)) fail(file, 'distribution must be an object');
         return {
-          distributionId: asString(file, item.distributionId, 'distributionId'),
+          distributionId: requireUuid(
+            file,
+            item.distributionId,
+            'distributionId',
+          ),
           name: optionalString(item.name),
           description: optionalString(item.description),
           url: optionalString(item.url),
@@ -575,7 +579,7 @@ export class ContentStore {
       if (!Array.isArray(raw.distributionIds))
         fail(file, 'distributionIds must be an array');
       distributionIds = raw.distributionIds.map((item) =>
-        asString(file, item, 'distributionIds'),
+        requireUuid(file, item, 'distributionIds'),
       );
       if (distributionIds.length === 0) distributionIds = undefined;
     }

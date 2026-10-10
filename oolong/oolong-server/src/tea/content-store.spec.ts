@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { ContentStore } from './content-store';
 
@@ -44,6 +45,26 @@ describe('ContentStore', () => {
         ),
       ),
     ).toBe(false);
+  });
+
+  it('rejects a distribution id that is not a uuid', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tea-dist-'));
+    fs.cpSync(fixtures, dir, { recursive: true });
+    const release = path.join(
+      dir,
+      'components',
+      'part',
+      'releases',
+      '1.0.0',
+      'release.yaml',
+    );
+    const text = fs
+      .readFileSync(release, 'utf8')
+      .replace('66666666-6666-4666-8666-666666666666', 'dist-hosted');
+    fs.writeFileSync(release, text);
+    expect(() => new ContentStore(dir)).toThrow(
+      /distributionId is not a lowercase UUID/,
+    );
   });
 
   it('loads the migrated sample content', () => {

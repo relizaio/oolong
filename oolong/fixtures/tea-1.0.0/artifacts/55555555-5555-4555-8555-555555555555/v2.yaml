@@ -4,7 +4,7 @@ name: Widget SBOM
 type: BOM
 createdDate: '2026-02-01T00:00:00Z'
 distributionIds:
-  - dist-hosted
+  - 66666666-6666-4666-8666-666666666666
 formats:
   - mediaType: application/vnd.cyclonedx+json
     description: Hosted CycloneDX JSON

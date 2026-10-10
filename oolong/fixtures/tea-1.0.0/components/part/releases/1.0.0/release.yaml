@@ -8,6 +8,6 @@ identifiers:
   - idType: PURL
     idValue: pkg:generic/oolong-fixture/part@1.0.0
 distributions:
-  - distributionId: dist-hosted
+  - distributionId: 66666666-6666-4666-8666-666666666666
     description: Hosted distribution
     url: https://example.invalid/part.bin
