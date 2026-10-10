@@ -2,6 +2,9 @@ import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { INestApplication } from '@nestjs/common';
+import Ajv2020 from 'ajv/dist/2020';
+import addFormats from 'ajv-formats';
+import * as yaml from 'js-yaml';
 import request from 'supertest';
 import { createApp } from '../src/tea/create-app';
 
@@ -130,6 +133,13 @@ describe('TEA 1.0.0 (e2e)', () => {
         ],
       },
     ]);
+    const unknownTei = await request(server())
+      .get('/v1.0.0/discovery')
+      .query({
+        tei: 'tei://localhost/uuid/99999999-9999-4999-8999-999999999999',
+      })
+      .expect(404);
+    expect(unknownTei.body).toEqual({ error: 'OBJECT_UNKNOWN' });
     const byPurl = await request(server())
       .get('/v1.0.0/discovery')
       .query({ purl: 'pkg:generic/oolong-fixture/widget@1.0.0' })
@@ -206,6 +216,23 @@ describe('TEA 1.0.0 (e2e)', () => {
       .query({ pageToken: 'not-a-token' })
       .expect(400);
     expect(bad.body.error).toBe('INVALID_PAGE_TOKEN');
+    const releasePage = await request(server())
+      .get(`/v1.0.0/product/${PRODUCT}/releases`)
+      .query({ pageSize: '1' })
+      .expect(200);
+    const sortMismatch = await request(server())
+      .get(`/v1.0.0/product/${PRODUCT}/releases`)
+      .query({
+        pageToken: releasePage.body.nextPageToken,
+        sortField: 'version',
+      })
+      .expect(400);
+    expect(sortMismatch.body.error).toBe('INVALID_PAGE_TOKEN');
+    const parentMismatch = await request(server())
+      .get('/v1.0.0/product/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1/releases')
+      .query({ pageToken: releasePage.body.nextPageToken })
+      .expect(400);
+    expect(parentMismatch.body.error).toBe('INVALID_PAGE_TOKEN');
     const huge = await request(server())
       .get('/v1.0.0/products')
       .query({ pageSize: '101' })
@@ -459,5 +486,60 @@ describe('TEA 1.0.0 (e2e)', () => {
       .expect(400);
     expect(res.body.error).toBe('INVALID_REQUEST');
     expect(JSON.stringify(res.body)).not.toContain('root:');
+  });
+
+  it('matches the pinned schemas for representative responses', async () => {
+    const specPath = path.resolve(__dirname, '../../../tea-spec/openapi.yaml');
+    const document = yaml.load(fs.readFileSync(specPath, 'utf8')) as object;
+    const ajv = new Ajv2020({
+      strict: false,
+      allErrors: true,
+      validateSchema: false,
+    });
+    addFormats(ajv);
+    ajv.addSchema(document, 'tea');
+    const check = async (url: string, schema: string) => {
+      const res = await request(server()).get(url).expect(200);
+      const valid = ajv.validate(`tea#/components/schemas/${schema}`, res.body);
+      if (!valid) {
+        throw new Error(
+          `${schema}: ${ajv.errorsText(ajv.errors, { separator: '\n' })}`,
+        );
+      }
+    };
+    await check(`/v1.0.0/product/${PRODUCT}`, 'product');
+    await check(
+      `/v1.0.0/productRelease/${RELEASE}`,
+      'product-release-with-collection',
+    );
+    await check(`/v1.0.0/component/${COMPONENT}`, 'component');
+    await check(
+      `/v1.0.0/componentRelease/${COMPONENT_RELEASE}`,
+      'component-release-with-collection',
+    );
+    await check(
+      `/v1.0.0/productRelease/${RELEASE}/collection/latest`,
+      'collection',
+    );
+    await check(`/v1.0.0/artifact/${ART}/2`, 'artifact');
+    await check('/v1.0.0/products?pageSize=2', 'paginated-product-response');
+    const discovery = await request(server())
+      .get('/v1.0.0/discovery')
+      .query({
+        tei: 'tei://localhost/uuid/22222222-2222-4222-8222-222222222222',
+      })
+      .expect(200);
+    expect(Array.isArray(discovery.body)).toBe(true);
+    for (const item of discovery.body as unknown[]) {
+      const valid = ajv.validate(
+        'tea#/components/schemas/discovery-info',
+        item,
+      );
+      if (!valid) {
+        throw new Error(
+          `discovery-info: ${ajv.errorsText(ajv.errors, { separator: '\n' })}`,
+        );
+      }
+    }
   });
 });

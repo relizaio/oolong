@@ -12,6 +12,7 @@ services:
       - SERVER_HOST=http://127.0.0.1:3005
       - CONTENT_DIR=/app/src/content
       - TEA_SPEC_COMMIT=962a0228af1bfcc1232ac3f79239317ff33fdb04
+      - PAGE_TOKEN_SECRET=oolong-local-interop
     healthcheck:
       test: ["CMD", "node", "tea-ready.js"]
       interval: 5s

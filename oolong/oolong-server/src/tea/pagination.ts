@@ -23,8 +23,21 @@ export interface TokenState {
   index: number;
 }
 
+export function assertPageTokenSecret(): string {
+  const configured = process.env.PAGE_TOKEN_SECRET;
+  if (typeof configured === 'string' && configured.length > 0) {
+    return configured;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'PAGE_TOKEN_SECRET must be set when NODE_ENV is production',
+    );
+  }
+  return 'oolong-dev-page-token';
+}
+
 function secret(): string {
-  return process.env.PAGE_TOKEN_SECRET || 'oolong-dev-page-token';
+  return assertPageTokenSecret();
 }
 
 export function signToken(state: TokenState): string {

@@ -58,7 +58,7 @@ describe('PathGuard', () => {
         '    bodyFile: ../../../../secret.json',
         '    checksums:',
         '      - algType: SHA-256',
-        '        algValue: abc',
+        `        algValue: ${'ab'.repeat(32)}`,
       ].join('\n'),
     );
     expect(() => new ContentStore(dir)).toThrow(/bodyFile escapes/);

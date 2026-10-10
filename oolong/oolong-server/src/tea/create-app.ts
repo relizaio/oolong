@@ -3,10 +3,12 @@ import { NestFactory } from '@nestjs/core';
 import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from '../app.module';
 import { TeaExceptionFilter } from './errors';
+import { assertPageTokenSecret } from './pagination';
 import { API_PREFIX, assertAdvertisedVersion } from './representation';
 
 export async function createApp(): Promise<INestApplication> {
   assertAdvertisedVersion();
+  assertPageTokenSecret();
   const app = await NestFactory.create(AppModule, { logger: false });
   const expressApp = app.getHttpAdapter().getInstance() as {
     set: (key: string, value: unknown) => void;
