@@ -1,0 +1,8 @@
+version: 1
+createdDate: '2026-01-15T00:00:00Z'
+belongsTo: PRODUCT_RELEASE
+updateReason:
+  type: INITIAL_RELEASE
+artifacts:
+  - uuid: 55555555-5555-4555-8555-555555555555
+    version: 1

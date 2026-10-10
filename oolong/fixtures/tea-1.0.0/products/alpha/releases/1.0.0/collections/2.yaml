@@ -1,0 +1,9 @@
+version: 2
+createdDate: '2026-02-01T00:00:00Z'
+belongsTo: PRODUCT_RELEASE
+updateReason:
+  type: ARTIFACT_UPDATED
+  comment: Adopted revision 2
+artifacts:
+  - uuid: 55555555-5555-4555-8555-555555555555
+    version: 2

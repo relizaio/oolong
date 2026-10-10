@@ -5,9 +5,9 @@ releaseDate: '2025-10-16T19:26:57Z'
 preRelease: false
 identifiers:
 - idType: TEI
-  idValue: urn:tei:asin:demo.rearmhq.com:B09D6HR559
+  idValue: tei://demo.rearmhq.com/asin/B09D6HR559
 - idType: TEI
-  idValue: urn:tei:uuid:demo.rearmhq.com:9485fbc9-aa7d-4c26-95c9-d5a8ccb1c073
+  idValue: tei://demo.rearmhq.com/uuid/9485fbc9-aa7d-4c26-95c9-d5a8ccb1c073
 components:
 - uuid: adc0909a-3039-47eb-82ba-7686767c0d52
   release: 7a7fa4da-bf9b-478f-b934-2fe9e0fc317c
