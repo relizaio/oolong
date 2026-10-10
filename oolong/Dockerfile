@@ -20,22 +20,24 @@ WORKDIR /app
 COPY --chown=apprunner:apprunner oolong-server/package*.json ./
 RUN npm ci --omit=dev --ignore-scripts
 COPY --from=builder --chown=apprunner:apprunner /app/dist ./dist
-COPY --chown=apprunner:apprunner content ./src/content
+COPY --chown=apprunner:apprunner fixtures/tea-1.0.0 ./src/content
+COPY --chown=apprunner:apprunner docker/tea-ready.js ./tea-ready.js
 
 USER apprunner
 
 # Set environment variables with defaults
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV API_VERSION=v0.2.0-beta.2
-ENV SERVER_HOST=http://localhost:3000
+ENV API_VERSION=v1.0.0
+ENV SERVER_HOST=http://127.0.0.1:3000
+ENV CONTENT_DIR=/app/src/content
 
 # Expose the port
 EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/.well-known/tea', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD ["node", "tea-ready.js"]
 
 
 LABEL org.opencontainers.image.vendor="Reliza Incorporated"

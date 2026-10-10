@@ -70,9 +70,10 @@ docker build -t oolong-local .
 The following command shows how to run the container image with a custom content directory and environment variables.
 
 ```bash
-docker run -p 3000:3000 \
-  -v /path/to/content:/app/src/content \
-  -e API_VERSION=v0.2.0-beta.2 \
+docker run -p 127.0.0.1:3000:3000 \
+  -v /path/to/content:/app/src/content:ro \
+  -e API_VERSION=v1.0.0 \
+  -e CONTENT_DIR=/app/src/content \
   -e SERVER_HOST=https://myserver.com/tea \
   oolong-local
 ```
@@ -101,11 +102,9 @@ docker-compose -f docker-compose.dev.yml up -d --build
 
 This will build the image locally and run with `NODE_ENV=development`.
 
-Both configurations:
-- Mount the `./oolong/content` directory to serve TEA content
-- Run on port `3005` (mapped to container port `3000`)
-- Set `API_VERSION=v0.2.0-beta.2`
-- Set `SERVER_HOST=http://localhost:3005`
+`docker-compose.yml` still points at the registry image and `API_VERSION=v0.2.0-beta.2`. Its content mount is `./content` relative to `oolong/`.
+
+`docker-compose.dev.yml` and `docker-compose.tea-interop.yml` build this tree, advertise `1.0.0`, and mount `./fixtures/tea-1.0.0` read-only on `127.0.0.1:3005`. The interop file sets `SERVER_HOST=http://127.0.0.1:3005` and `TEA_SPEC_COMMIT=962a0228af1bfcc1232ac3f79239317ff33fdb04`. Readiness checks that `/.well-known/tea` advertises `1.0.0` and that `/v1.0.0/products` returns 200.
 
 
 ## Installation via helm chart
@@ -157,22 +156,19 @@ The Git pod will clone the repository and perform `git pull` at the specified in
 
 ## Generation from TEA OpenAPI Specification
 
-```bash
-npx @openapitools/openapi-generator-cli version-manager set 7.16.0
-npx @openapitools/openapi-generator-cli generate -i tea-spec/openapi.yaml -g typescript-nestjs-server -o oolong/oolong-server/src/generated-nest/
-```
+The running API is the handwritten server in `oolong/oolong-server/src/tea`. `src/generated-nest` remains the Beta 2 snapshot and is not mounted.
+
+OpenAPI Generator CLI 7.16.0 can emit models for the pinned 1.0.0 document, and its download controllers do not preserve binary responses or the `If-None-Match` header. Do not regenerate into `src/generated-nest`. The trial is recorded in `docs/tea-upgrade/generator-strategy.md`.
 
 ## Run Locally for Development
 
 ```bash
-cd oolong/oolong-server/src/generated-nest
+cd oolong/oolong-server
 npm ci --ignore-scripts
-
-cd ../../
-npm ci --ignore-scripts
-
 npm run start:dev
 ```
+
+The server reads `CONTENT_DIR`, or `../fixtures/tea-1.0.0` when that variable is unset. `API_VERSION` must be `1.0.0` or `v1.0.0`.
 
 ## More Documentation
 Refer to [IMPLEMENTATION_NOTES.md](oolong/oolong-server/IMPLEMENTATION_NOTES.md) for more details.
