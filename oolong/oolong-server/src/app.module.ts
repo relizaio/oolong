@@ -1,29 +1,17 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { ApiModule, ApiImplementations } from './generated-nest';
-import { TEAArtifactService } from './handlers/TEAArtifactService';
-import { TEAComponentService } from './handlers/TEAComponentService';
-import { TEAComponentReleaseService } from './handlers/TEAComponentReleaseService';
-import { TEADiscoveryService } from './handlers/TEADiscoveryService';
-import { TEAProductService } from './handlers/TEAProductService';
-import { TEAProductReleaseService } from './handlers/TEAProductReleaseService';
-import { WellKnownController } from './controllers/well-known.controller';
-
-const apiImplementations: ApiImplementations = {
-  tEAArtifactApi: TEAArtifactService,
-  tEAComponentApi: TEAComponentService,
-  tEAComponentReleaseApi: TEAComponentReleaseService,
-  tEADiscoveryApi: TEADiscoveryService,
-  tEAProductApi: TEAProductService,
-  tEAProductReleaseApi: TEAProductReleaseService,
-};
+import { ContentStore, contentRoot } from './tea/content-store';
+import { TeaController } from './tea/tea.controller';
+import { TeaService } from './tea/tea.service';
+import { WellKnownController } from './tea/well-known.controller';
 
 @Module({
-  imports: [
-    ApiModule.forRoot(apiImplementations),
+  controllers: [TeaController, WellKnownController],
+  providers: [
+    {
+      provide: ContentStore,
+      useFactory: () => new ContentStore(contentRoot()),
+    },
+    TeaService,
   ],
-  controllers: [AppController, WellKnownController],
-  providers: [AppService],
 })
 export class AppModule {}
