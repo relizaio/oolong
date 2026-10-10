@@ -467,7 +467,7 @@ export class TeaService {
         `${artifact.name ?? 'artifact'}-v${artifact.version}`,
       ),
     };
-    const vary = varyFor(mediaTypeQuery, artifact.formats.length);
+    const vary = varyFor(mediaTypeQuery);
     if (vary) headers.Vary = vary;
     sendBytes(req, res, bytes, headers);
   }

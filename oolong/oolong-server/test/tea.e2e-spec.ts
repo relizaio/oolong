@@ -380,6 +380,7 @@ describe('TEA 1.0.0 (e2e)', () => {
     expect(head.headers['content-type']).toContain(
       'application/vnd.cyclonedx+json',
     );
+    expect(head.headers.vary).toBe('Accept');
     expect(emptyPayload(head.body)).toBe(true);
 
     const latestDownload = await request(server())
@@ -424,6 +425,7 @@ describe('TEA 1.0.0 (e2e)', () => {
     expect(notModified.headers['cache-control']).toBe(
       'public, max-age=31536000, immutable',
     );
+    expect(notModified.headers.vary).toBe('Accept');
     expect(emptyPayload(notModified.body)).toBe(true);
 
     const checksum = await request(server())
@@ -450,6 +452,97 @@ describe('TEA 1.0.0 (e2e)', () => {
       .get(`/v1.0.0/artifact/${MISSING}/1/signature/download`)
       .expect(404);
     expect(unknownSig.body.error).toBe('OBJECT_UNKNOWN');
+  });
+
+  it('varies one-format downloads on Accept', async () => {
+    const path = `/v1.0.0/artifact/${UNSIGNED}/1/download`;
+    const matching = await request(server())
+      .get(path)
+      .set('Accept', 'application/json')
+      .parse(rawBody)
+      .expect(200);
+    expect(matching.headers['content-type']).toContain('application/json');
+    expect(matching.headers.vary).toBe('Accept');
+    expect((matching.body as Buffer).length).toBeGreaterThan(0);
+
+    const wildcard = await request(server())
+      .get(path)
+      .set('Accept', '*/*')
+      .parse(rawBody)
+      .expect(200);
+    expect(wildcard.headers['content-type']).toContain('application/json');
+    expect(wildcard.headers.vary).toBe('Accept');
+
+    const absent = await request(server())
+      .get(path)
+      .unset('Accept')
+      .parse(rawBody)
+      .expect(200);
+    expect(absent.headers['content-type']).toContain('application/json');
+    expect(absent.headers.vary).toBe('Accept');
+
+    const rejected = await request(server())
+      .get(path)
+      .set('Accept', 'text/plain')
+      .expect(406);
+    expect(rejected.body.error).toBe('NO_ACCEPTABLE_FORMAT');
+
+    const pinned = await request(server())
+      .get(path)
+      .query({ mediaType: 'application/json' })
+      .set('Accept', 'text/plain')
+      .parse(rawBody)
+      .expect(200);
+    expect(pinned.headers['content-type']).toContain('application/json');
+    expect(pinned.headers.vary).toBeUndefined();
+
+    const head = await request(server())
+      .head(path)
+      .set('Accept', 'application/json')
+      .parse(rawBody)
+      .expect(200);
+    expect(head.headers.vary).toBe('Accept');
+    expect(head.headers['content-type']).toContain('application/json');
+    expect(emptyPayload(head.body)).toBe(true);
+
+    const headRejected = await request(server())
+      .head(path)
+      .set('Accept', 'text/plain')
+      .parse(rawBody)
+      .expect(406);
+    expect(emptyPayload(headRejected.body)).toBe(true);
+
+    const json = await request(server())
+      .get(`/v1.0.0/artifact/${ART}/2/download`)
+      .set('Accept', 'application/vnd.cyclonedx+json')
+      .parse(rawBody)
+      .expect(200);
+    const xml = await request(server())
+      .get(`/v1.0.0/artifact/${ART}/2/download`)
+      .set('Accept', 'application/vnd.cyclonedx+xml')
+      .parse(rawBody)
+      .expect(200);
+    expect(json.headers.vary).toBe('Accept');
+    expect(xml.headers.vary).toBe('Accept');
+    expect(Buffer.compare(json.body as Buffer, xml.body as Buffer)).not.toBe(0);
+
+    const headMany = await request(server())
+      .head(`/v1.0.0/artifact/${ART}/2/download`)
+      .set('Accept', 'application/vnd.cyclonedx+xml')
+      .parse(rawBody)
+      .expect(200);
+    expect(headMany.headers.vary).toBe('Accept');
+    expect(emptyPayload(headMany.body)).toBe(true);
+
+    const notModified = await request(server())
+      .get(path)
+      .set('Accept', 'application/json')
+      .set('If-None-Match', matching.headers.etag)
+      .parse(rawBody)
+      .expect(304);
+    expect(notModified.headers.etag).toBe(matching.headers.etag);
+    expect(notModified.headers.vary).toBe('Accept');
+    expect(emptyPayload(notModified.body)).toBe(true);
   });
 
   it('reports CLE and token absence without treating a missing object as unimplemented', async () => {

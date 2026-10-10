@@ -130,12 +130,14 @@ export function selectFormat(
   return best.format;
 }
 
-export function varyFor(
-  mediaType: string | undefined,
-  formatCount: number,
-): string | undefined {
+/**
+ * `Accept` selects the representation whenever `mediaType` is absent, including
+ * when only one format exists: a non-matching Accept is 406. RFC 9111 uses Vary
+ * on the stored 200 to decide reuse, so that 200 must name Accept.
+ * An explicit mediaType fully determines the format and Accept is not consulted.
+ */
+export function varyFor(mediaType: string | undefined): string | undefined {
   if (mediaType !== undefined) return undefined;
-  if (formatCount < 2) return undefined;
   return 'Accept';
 }
 
