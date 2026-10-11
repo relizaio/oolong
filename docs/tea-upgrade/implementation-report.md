@@ -18,7 +18,7 @@ The four CLE routes return `404 OBJECT_UNKNOWN` when the object is missing and `
 
 Pagination defaults to 25 items, rejects `pageSize` above 100 as `INVALID_REQUEST`, and returns `hasNext` plus an HMAC `nextPageToken` bound to the operation, parent, filters, sort, page size, and index. A mismatched or malformed token is `400 INVALID_PAGE_TOKEN`.
 
-Discovery requires exactly one of `tei` or `purl`. Comparison uses the value Express decoded once. An unknown identifier is `404 OBJECT_UNKNOWN`. When several product releases match, the server orders them by product-release UUID. The pinned document does not define a numeric priority on a release, so that order is the server's stable tie-break. `idType` and `idValue` must be supplied together; a lone filter is `400 INVALID_REQUEST`.
+Discovery requires exactly one of `tei` or `purl`. Comparison uses the value Express decoded once. An unknown identifier is `404 OBJECT_UNKNOWN`. When several product releases match, the server orders them by product-release UUID. The pinned document does not define a numeric priority on a release, so that order is the server's stable tie-break. `idType` alone returns objects that have an identifier of that type. `idType` with `idValue` matches both fields on the same identifier. `idValue` alone is `400 INVALID_REQUEST`. That rejection is current Oolong behavior; TEA 1.0 does not settle idValue-only filtering.
 
 A release response is flat and includes `latestCollection`. A release with no collection files returns a synthetic version 1 collection in the response only.
 

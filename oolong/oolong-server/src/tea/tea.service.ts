@@ -70,9 +70,9 @@ function matchesId(
   idValue: string,
 ): boolean {
   if (!idType) return true;
-  return (identifiers ?? []).some(
-    (id) => id.idType === idType && id.idValue === idValue,
-  );
+  const rows = identifiers ?? [];
+  if (!idValue) return rows.some((id) => id.idType === idType);
+  return rows.some((id) => id.idType === idType && id.idValue === idValue);
 }
 
 @Injectable()

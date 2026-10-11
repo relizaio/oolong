@@ -72,9 +72,10 @@ Query methods support pagination with:
 - Returns `totalResults`, `pageStartIndex`, `pageSize`, and `results`
 
 ### Identifier Filtering
-Query methods support filtering by identifier type and value:
-- Searches through the `identifiers` array in each entity
-- Matches both `idType` and `idValue`
+Query methods search each object's `identifiers` array:
+- `idType` and `idValue` together match one identifier that has both.
+- `idType` alone matches an object that has at least one identifier of that type.
+- `idValue` alone is rejected. The TEA 1.0 text does not settle that case, so this rejection is Oolong behavior, not a claimed specification requirement.
 
 ### Error Handling
 - Returns `NotFoundException` when entities are not found

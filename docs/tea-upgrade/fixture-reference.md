@@ -16,7 +16,7 @@ Sorted by `name`, then `uuid`.
 | Epsilon Fixture | `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4` |
 | Gamma Fixture | `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2` |
 
-Alpha identifiers: CPE `cpe:2.3:a:oolong:fixture-widget`, PURL `pkg:generic/oolong-fixture/widget`. Discovery does not use the product PURL.
+Alpha identifiers: CPE `cpe:2.3:a:oolong:fixture-widget`, PURL `pkg:generic/oolong-fixture/widget`. Beta has PURL `pkg:generic/oolong-fixture/beta`. Discovery does not use the product PURL.
 
 ## Product releases
 

@@ -1,4 +1,9 @@
-import { assertPageTokenSecret, readToken, signToken } from './pagination';
+import {
+  assertPageTokenSecret,
+  parseIdFilter,
+  readToken,
+  signToken,
+} from './pagination';
 
 describe('PAGE_TOKEN_SECRET', () => {
   const previousNodeEnv = process.env.NODE_ENV;
@@ -61,5 +66,26 @@ describe('PAGE_TOKEN_SECRET', () => {
       index: 1,
     });
     expect(readToken(token).index).toBe(1);
+  });
+});
+
+describe('parseIdFilter', () => {
+  it('accepts a type-only filter and still rejects a value without a type', () => {
+    expect(parseIdFilter(undefined, undefined)).toBeUndefined();
+    expect(parseIdFilter('PURL', undefined)).toEqual({
+      idType: 'PURL',
+      idValue: '',
+    });
+    expect(parseIdFilter('CPE', 'cpe:2.3:a:oolong:fixture-widget')).toEqual({
+      idType: 'CPE',
+      idValue: 'cpe:2.3:a:oolong:fixture-widget',
+    });
+    expect(() => parseIdFilter(undefined, 'pkg:generic/example')).toThrow(
+      /idValue requires idType/,
+    );
+    expect(() => parseIdFilter('PURL', '')).toThrow(/invalid idValue/);
+    expect(() => parseIdFilter('NOT_A_TYPE', undefined)).toThrow(
+      /invalid idType/,
+    );
   });
 });

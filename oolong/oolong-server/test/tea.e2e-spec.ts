@@ -233,6 +233,41 @@ describe('TEA 1.0.0 (e2e)', () => {
       .query({ pageToken: releasePage.body.nextPageToken })
       .expect(400);
     expect(parentMismatch.body.error).toBe('INVALID_PAGE_TOKEN');
+    const typed = await request(server())
+      .get('/v1.0.0/products')
+      .query({ idType: 'PURL', pageSize: '1' })
+      .expect(200);
+    expect(
+      typed.body.results.map((item: { name: string }) => item.name),
+    ).toEqual(['Alpha Fixture']);
+    expect(typed.body.hasNext).toBe(true);
+    const typedNext = await request(server())
+      .get('/v1.0.0/products')
+      .query({ pageToken: typed.body.nextPageToken })
+      .expect(200);
+    expect(
+      typedNext.body.results.map((item: { name: string }) => item.name),
+    ).toEqual(['Beta Fixture']);
+    expect(typedNext.body.hasNext).toBe(false);
+    const typedAgain = await request(server())
+      .get('/v1.0.0/products')
+      .query({ pageToken: typed.body.nextPageToken })
+      .expect(200);
+    expect(typedAgain.body.results[0].name).toBe('Beta Fixture');
+    const typedChanged = await request(server())
+      .get('/v1.0.0/products')
+      .query({ pageToken: typed.body.nextPageToken, idType: 'CPE' })
+      .expect(400);
+    expect(typedChanged.body.error).toBe('INVALID_PAGE_TOKEN');
+    const typedNarrowed = await request(server())
+      .get('/v1.0.0/products')
+      .query({
+        pageToken: typed.body.nextPageToken,
+        idType: 'PURL',
+        idValue: 'pkg:generic/oolong-fixture/widget',
+      })
+      .expect(400);
+    expect(typedNarrowed.body.error).toBe('INVALID_PAGE_TOKEN');
     const huge = await request(server())
       .get('/v1.0.0/products')
       .query({ pageSize: '101' })
@@ -256,8 +291,122 @@ describe('TEA 1.0.0 (e2e)', () => {
     const lone = await request(server())
       .get('/v1.0.0/products')
       .query({ idType: 'PURL' })
+      .expect(200);
+    expect(
+      lone.body.results.map((item: { name: string }) => item.name),
+    ).toEqual(['Alpha Fixture', 'Beta Fixture']);
+  });
+
+  it('filters by identifier type alone and keeps value-only queries rejected', async () => {
+    const names = (body: { results: { name: string }[] }) =>
+      body.results.map((item) => item.name);
+    const uuids = (body: { results: { uuid: string }[] }) =>
+      body.results.map((item) => item.uuid);
+    const products = await request(server())
+      .get('/v1.0.0/products')
+      .expect(200);
+    expect(names(products.body)).toEqual([
+      'Alpha Fixture',
+      'Beta Fixture',
+      'Delta Fixture',
+      'Epsilon Fixture',
+      'Gamma Fixture',
+    ]);
+    const both = await request(server())
+      .get('/v1.0.0/products')
+      .query({ idType: 'CPE', idValue: 'cpe:2.3:a:oolong:fixture-widget' })
+      .expect(200);
+    expect(names(both.body)).toEqual(['Alpha Fixture']);
+    const crossed = await request(server())
+      .get('/v1.0.0/products')
+      .query({ idType: 'CPE', idValue: 'pkg:generic/oolong-fixture/widget' })
+      .expect(200);
+    expect(crossed.body.results).toEqual([]);
+    const byType = await request(server())
+      .get('/v1.0.0/products')
+      .query({ idType: 'CPE' })
+      .expect(200);
+    expect(names(byType.body)).toEqual(['Alpha Fixture']);
+    const byOtherType = await request(server())
+      .get('/v1.0.0/products')
+      .query({ idType: 'PURL' })
+      .expect(200);
+    expect(names(byOtherType.body)).toEqual(['Alpha Fixture', 'Beta Fixture']);
+    const none = await request(server())
+      .get('/v1.0.0/products')
+      .query({ idType: 'TEI' })
+      .expect(200);
+    expect(none.body.results).toEqual([]);
+    const valueOnly = await request(server())
+      .get('/v1.0.0/products')
+      .query({ idValue: 'pkg:generic/oolong-fixture/widget' })
       .expect(400);
-    expect(lone.body.error).toBe('INVALID_REQUEST');
+    expect(valueOnly.body.error).toBe('INVALID_REQUEST');
+    const blankValue = await request(server())
+      .get('/v1.0.0/products')
+      .query({ idType: 'PURL', idValue: '' })
+      .expect(400);
+    expect(blankValue.body.error).toBe('INVALID_REQUEST');
+
+    const releases = await request(server())
+      .get('/v1.0.0/productReleases')
+      .query({
+        idType: 'PURL',
+        idValue: 'pkg:generic/oolong-fixture/widget@1.0.0',
+      })
+      .expect(200);
+    expect(uuids(releases.body)).toEqual([RELEASE]);
+    const releaseType = await request(server())
+      .get('/v1.0.0/productReleases')
+      .query({ idType: 'TEI' })
+      .expect(200);
+    expect(uuids(releaseType.body)).toEqual([RELEASE]);
+    const releaseValue = await request(server())
+      .get('/v1.0.0/productReleases')
+      .query({
+        idValue: 'tei://localhost/uuid/22222222-2222-4222-8222-222222222222',
+      })
+      .expect(400);
+    expect(releaseValue.body.error).toBe('INVALID_REQUEST');
+
+    const components = await request(server())
+      .get('/v1.0.0/components')
+      .query({ idType: 'PURL', idValue: 'pkg:generic/oolong-fixture/part' })
+      .expect(200);
+    expect(names(components.body)).toEqual(['Fixture Part']);
+    const componentType = await request(server())
+      .get('/v1.0.0/components')
+      .query({ idType: 'PURL' })
+      .expect(200);
+    expect(names(componentType.body)).toEqual(['Fixture Part']);
+    const componentValue = await request(server())
+      .get('/v1.0.0/components')
+      .query({ idValue: 'pkg:generic/oolong-fixture/part' })
+      .expect(400);
+    expect(componentValue.body.error).toBe('INVALID_REQUEST');
+
+    const componentReleases = await request(server())
+      .get('/v1.0.0/componentReleases')
+      .query({
+        idType: 'PURL',
+        idValue: 'pkg:generic/oolong-fixture/part@1.0.0',
+      })
+      .expect(200);
+    expect(uuids(componentReleases.body)).toEqual([
+      '44444444-4444-4444-8444-444444444444',
+    ]);
+    const componentReleaseType = await request(server())
+      .get('/v1.0.0/componentReleases')
+      .query({ idType: 'PURL' })
+      .expect(200);
+    expect(uuids(componentReleaseType.body)).toEqual([
+      '44444444-4444-4444-8444-444444444444',
+    ]);
+    const componentReleaseValue = await request(server())
+      .get('/v1.0.0/componentReleases')
+      .query({ idValue: 'pkg:generic/oolong-fixture/part@1.0.0' })
+      .expect(400);
+    expect(componentReleaseValue.body.error).toBe('INVALID_REQUEST');
   });
 
   it('returns flat releases, stable collection versions, and parent 404s', async () => {

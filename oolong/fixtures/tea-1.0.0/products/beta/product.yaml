@@ -1,3 +1,5 @@
 uuid: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1
 name: Beta Fixture
-identifiers: []
+identifiers:
+  - idType: PURL
+    idValue: pkg:generic/oolong-fixture/beta

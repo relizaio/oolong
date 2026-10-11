@@ -158,17 +158,19 @@ export function parseIdFilter(
   if (idType === undefined && idValue === undefined) {
     return undefined;
   }
-  if (idType === undefined || idValue === undefined || idValue === '') {
-    throw new TeaException(
-      400,
-      'INVALID_REQUEST',
-      'idType and idValue must be supplied together',
-    );
+  if (idType === '') {
+    throw new TeaException(400, 'INVALID_REQUEST', 'invalid idType');
+  }
+  if (idValue === '') {
+    throw new TeaException(400, 'INVALID_REQUEST', 'invalid idValue');
+  }
+  if (idType === undefined) {
+    throw new TeaException(400, 'INVALID_REQUEST', 'idValue requires idType');
   }
   if (!ID_TYPES.has(idType)) {
     throw new TeaException(400, 'INVALID_REQUEST', 'invalid idType');
   }
-  return { idType, idValue };
+  return { idType, idValue: idValue ?? '' };
 }
 
 export function resolvePage(
