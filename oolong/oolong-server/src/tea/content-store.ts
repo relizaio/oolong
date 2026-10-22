@@ -189,6 +189,25 @@ function optionalString(value: unknown): string | undefined {
   return value;
 }
 
+function releaseParentId(
+  file: string,
+  field: 'product' | 'component',
+  declared: unknown,
+  enclosingUuid: string,
+): string {
+  if (declared === undefined || declared === null) {
+    return enclosingUuid;
+  }
+  const parsed = requireUuid(file, declared, field);
+  if (parsed !== enclosingUuid) {
+    fail(
+      file,
+      `${field} ${parsed} does not match enclosing ${field} ${enclosingUuid}`,
+    );
+  }
+  return parsed;
+}
+
 function requireUuid(file: string, value: unknown, field: string): string {
   const text = asString(file, value, field);
   if (!UUID_RE.test(text)) fail(file, `${field} is not a lowercase UUID`);
@@ -499,7 +518,7 @@ export class ContentStore {
       : fail(file, 'components is required');
     return {
       uuid: requireUuid(file, raw.uuid, 'uuid'),
-      product: requireUuid(file, raw.product ?? product.uuid, 'product'),
+      product: releaseParentId(file, 'product', raw.product, product.uuid),
       productName: optionalString(raw.productName) ?? product.name,
       version: asString(file, raw.version, 'version'),
       createdDate: requireDate(file, raw.createdDate, 'createdDate'),
@@ -603,10 +622,11 @@ export class ContentStore {
     }
     return {
       uuid: requireUuid(file, raw.uuid, 'uuid'),
-      component: requireUuid(
+      component: releaseParentId(
         file,
-        raw.component ?? component.uuid,
         'component',
+        raw.component,
+        component.uuid,
       ),
       componentName: optionalString(raw.componentName) ?? component.name,
       version: asString(file, raw.version, 'version'),

@@ -13,11 +13,7 @@ function writeProduct(dir: string, name = 'Loop Product'): void {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(
     path.join(dir, 'product.yaml'),
-    [
-      `uuid: ${PRODUCT_UUID}`,
-      `name: ${name}`,
-      'identifiers: []',
-    ].join('\n'),
+    [`uuid: ${PRODUCT_UUID}`, `name: ${name}`, 'identifiers: []'].join('\n'),
   );
 }
 
@@ -73,11 +69,9 @@ describe('content directory traversal with symlinks', () => {
     const insideUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
     fs.writeFileSync(
       path.join(root, 'products', 'inside', 'product.yaml'),
-      [
-        `uuid: ${insideUuid}`,
-        'name: Inside Product',
-        'identifiers: []',
-      ].join('\n'),
+      [`uuid: ${insideUuid}`, 'name: Inside Product', 'identifiers: []'].join(
+        '\n',
+      ),
     );
     fs.symlinkSync(outside, path.join(root, 'products', 'escape'));
     const store = new ContentStore(root);
