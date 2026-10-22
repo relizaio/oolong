@@ -43,24 +43,66 @@ if grep -q 'name: oolong-content' "$RENDER_STATIC"; then
   exit 1
 fi
 
-echo "test git pod template checksum changes with the ConfigMap"
+echo "test git deployment recreates instead of rolling two publishers"
 RENDER_A="$(mktemp)"
 RENDER_B="$(mktemp)"
-helm template git-a "$CHART" \
-  --set image=oolong-server:local \
-  --set gitPod.enabled=true \
-  --set gitPod.repoUrl='https://example.invalid/repo.git' \
+RENDER_C="$(mktemp)"
+COMMON_ARGS="--namespace oolong --set image=oolong-server:local --set gitPod.enabled=true --set gitPod.repoUrl=https://example.invalid/repo.git"
+# shellcheck disable=SC2086
+helm template oolong "$CHART" $COMMON_ARGS \
   --set gitPod.revisionRetentionCount=5 > "$RENDER_A"
-helm template git-b "$CHART" \
-  --set image=oolong-server:local \
-  --set gitPod.enabled=true \
-  --set gitPod.repoUrl='https://example.invalid/repo.git' \
+# shellcheck disable=SC2086
+helm template oolong "$CHART" $COMMON_ARGS \
   --set gitPod.revisionRetentionCount=8 > "$RENDER_B"
+# shellcheck disable=SC2086
+helm template oolong "$CHART" $COMMON_ARGS \
+  --set gitPod.revisionRetentionCount=5 > "$RENDER_C"
 
+GIT_STRATEGY="$(awk '
+  $1 == "kind:" && $2 == "Deployment" { dep=1; name=""; strategy="" }
+  dep && $1 == "name:" && name == "" { name=$2 }
+  dep && $1 == "type:" && strategy == "" { strategy=$2 }
+  dep && $0 == "---" {
+    if (name == "oolong-git") print strategy
+    dep=0
+  }
+  END {
+    if (dep && name == "oolong-git") print strategy
+  }
+' "$RENDER_A")"
+SERVER_STRATEGY="$(awk '
+  $1 == "kind:" && $2 == "Deployment" { dep=1; name=""; strategy="" }
+  dep && $1 == "name:" && name == "" { name=$2 }
+  dep && $1 == "type:" && strategy == "" { strategy=$2 }
+  dep && $0 == "---" {
+    if (name == "oolong") print strategy
+    dep=0
+  }
+  END {
+    if (dep && name == "oolong") print strategy
+  }
+' "$RENDER_A")"
+assert test "$GIT_STRATEGY" = "Recreate"
+assert test "$SERVER_STRATEGY" != "Recreate"
+
+echo "test checksum changes only when the rendered Git ConfigMap changes"
 SUM_A="$(awk '/checksum\/git-script:/ { print $2; exit }' "$RENDER_A")"
 SUM_B="$(awk '/checksum\/git-script:/ { print $2; exit }' "$RENDER_B")"
+SUM_C="$(awk '/checksum\/git-script:/ { print $2; exit }' "$RENDER_C")"
 assert test -n "$SUM_A"
-assert test -n "$SUM_B"
 assert test "$SUM_A" != "$SUM_B"
+assert test "$SUM_A" = "$SUM_C"
+
+SCRIPT_CHART="$(mktemp -d)"
+cp -R "$CHART/." "$SCRIPT_CHART/"
+printf '\n# checksum probe\n' >> "$SCRIPT_CHART/scripts/git-publish.inc.sh"
+RENDER_SCRIPT="$(mktemp)"
+# shellcheck disable=SC2086
+helm template oolong "$SCRIPT_CHART" $COMMON_ARGS \
+  --set gitPod.revisionRetentionCount=5 > "$RENDER_SCRIPT"
+SUM_SCRIPT="$(awk '/checksum\/git-script:/ { print $2; exit }' "$RENDER_SCRIPT")"
+assert test -n "$SUM_SCRIPT"
+assert test "$SUM_A" != "$SUM_SCRIPT"
+rm -rf "$SCRIPT_CHART"
 
 echo "all chart render integration tests passed"

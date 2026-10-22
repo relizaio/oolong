@@ -8,6 +8,8 @@ metadata:
     app.kubernetes.io/component: git
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "oolong.selectorLabels" . | nindent 6 }}

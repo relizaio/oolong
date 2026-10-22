@@ -4,6 +4,90 @@
 
 ACTIVE_POINTER_FILE="${CONTENT_DIR}/.oolong-active-revision"
 PUBLISH_COMPLETE_MARKER=".oolong-publish-complete"
+PUBLISH_LOCK_WAIT_SECONDS="${PUBLISH_LOCK_WAIT_SECONDS:-300}"
+PUBLISH_LOCK_STALE_SECONDS="${PUBLISH_LOCK_STALE_SECONDS:-30}"
+PUBLISH_LOCK_HELD=0
+PUBLISH_LOCK_HEARTBEAT_PID=""
+
+file_mtime() {
+  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1"
+}
+
+publish_lock_dir() {
+  printf '%s/.oolong-publish.lock' "$CONTENT_DIR"
+}
+
+lock_is_fresh() {
+  _lock="$(publish_lock_dir)"
+  _marker="$_lock/heartbeat"
+  if [ ! -e "$_marker" ]; then
+    _marker="$_lock"
+  fi
+  [ -e "$_marker" ] || return 1
+  _now="$(date +%s)"
+  _then="$(file_mtime "$_marker")"
+  [ $((_now - _then)) -lt "$PUBLISH_LOCK_STALE_SECONDS" ]
+}
+
+start_lock_heartbeat() {
+  _lock="$(publish_lock_dir)"
+  (
+    while [ -d "$_lock" ]; do
+      touch "$_lock/heartbeat" 2>/dev/null || exit 0
+      sleep 5
+    done
+  ) &
+  PUBLISH_LOCK_HEARTBEAT_PID=$!
+}
+
+acquire_publish_lock() {
+  _lock="$(publish_lock_dir)"
+  _waited=0
+  while true; do
+    if mkdir "$_lock" 2>/dev/null; then
+      touch "$_lock/heartbeat"
+      start_lock_heartbeat
+      PUBLISH_LOCK_HELD=1
+      return 0
+    fi
+    if ! lock_is_fresh; then
+      if mv "$_lock" "$_lock.stale.$$" 2>/dev/null; then
+        rm -rf "$_lock.stale.$$"
+        continue
+      fi
+    fi
+    _waited=$((_waited + 1))
+    if [ "$_waited" -ge "$PUBLISH_LOCK_WAIT_SECONDS" ]; then
+      echo "ERROR: timed out waiting for publish lock"
+      return 1
+    fi
+    sleep 1
+  done
+}
+
+release_publish_lock() {
+  if [ "$PUBLISH_LOCK_HELD" != 1 ]; then
+    return 0
+  fi
+  if [ -n "$PUBLISH_LOCK_HEARTBEAT_PID" ]; then
+    kill "$PUBLISH_LOCK_HEARTBEAT_PID" 2>/dev/null || true
+    wait "$PUBLISH_LOCK_HEARTBEAT_PID" 2>/dev/null || true
+    PUBLISH_LOCK_HEARTBEAT_PID=""
+  fi
+  rm -rf "$(publish_lock_dir)"
+  PUBLISH_LOCK_HELD=0
+}
+
+locked_sync_and_publish() {
+  acquire_publish_lock || return 1
+  _status=0
+  sync_worktree || _status=$?
+  if [ "$_status" -eq 0 ]; then
+    publish_revision || _status=$?
+  fi
+  release_publish_lock
+  return $_status
+}
 
 revision_complete() {
   [ -d "$1" ] && [ -d "$1/products" ] && [ -f "$1/$PUBLISH_COMPLETE_MARKER" ]

@@ -163,4 +163,36 @@ assert test -d "$REVISIONS_DIR/cccccccccccccccccccccccccccccccccccccccc"
 assert test -d "$REVISIONS_DIR/dddddddddddddddddddddddddddddddddddddddd"
 assert test ! -d "$REVISIONS_DIR/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
+echo "test publish lock excludes a second writer"
+CONTENT_DIR="$ROOT/content-lock"
+mkdir -p "$CONTENT_DIR"
+acquire_publish_lock
+if (
+  CONTENT_DIR="$CONTENT_DIR"
+  PUBLISH_LOCK_WAIT_SECONDS=1
+  . "$INC"
+  acquire_publish_lock
+); then
+  echo "ASSERT FAILED: second publisher acquired the lock"
+  exit 1
+fi
+release_publish_lock
+(
+  CONTENT_DIR="$CONTENT_DIR"
+  PUBLISH_LOCK_WAIT_SECONDS=2
+  . "$INC"
+  acquire_publish_lock
+  release_publish_lock
+)
+
+echo "test stale publish lock can be recovered"
+mkdir -p "$CONTENT_DIR/.oolong-publish.lock"
+touch "$CONTENT_DIR/.oolong-publish.lock/heartbeat"
+touch -t 202001010101.00 "$CONTENT_DIR/.oolong-publish.lock/heartbeat"
+PUBLISH_LOCK_STALE_SECONDS=5
+acquire_publish_lock
+assert test -d "$CONTENT_DIR/.oolong-publish.lock"
+release_publish_lock
+assert test ! -d "$CONTENT_DIR/.oolong-publish.lock"
+
 echo "all git-publish integration tests passed"

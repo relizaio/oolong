@@ -152,7 +152,7 @@ Do not install the published `0.0.7` chart / `25.10.6` image for this branch. Us
 
 ### Git Pod Configuration
 
-Enable automatic Git synchronization to populate content from a Git repository. Note, currently, only public repositories are supported. The Git pod rolls when the rendered Git ConfigMap changes (`checksum/git-script`).
+Enable automatic Git synchronization to populate content from a Git repository. Note, currently, only public repositories are supported. The Git pod uses `Recreate` and a shared-volume lock so an upgrade does not run two publishers against the same checkout. It rolls when the rendered Git ConfigMap changes (`checksum/git-script`). The server keeps serving its accepted snapshot while the Git pod restarts.
 
 ```bash
 helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \

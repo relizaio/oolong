@@ -40,14 +40,12 @@ data:
 
     . /scripts/git-publish.inc.sh
 
-    sync_worktree
-    publish_revision
+    locked_sync_and_publish
 
     echo "Starting sync loop..."
     while true; do
       echo "$(date '+%Y-%m-%d %H:%M:%S') - Fetching $GIT_BRANCH..."
-      if sync_worktree; then
-        publish_revision
+      if locked_sync_and_publish; then
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Sync successful"
       else
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Sync failed, will retry"
