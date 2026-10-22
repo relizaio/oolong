@@ -5,6 +5,69 @@ set -e
 ROOT="$(mktemp -d)"
 trap 'rm -rf "$ROOT"' EXIT
 
+if ! command -v flock >/dev/null 2>&1; then
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "flock or python3 is required for publish lock tests"
+    exit 1
+  fi
+  mkdir -p "$ROOT/bin"
+  cat > "$ROOT/bin/flock" << 'PY'
+#!/usr/bin/env python3
+import fcntl
+import sys
+import time
+
+timeout = None
+nonblock = False
+unlock = False
+fd = None
+args = sys.argv[1:]
+i = 0
+while i < len(args):
+    arg = args[i]
+    if arg == "-w":
+        timeout = float(args[i + 1])
+        i += 2
+        continue
+    if arg == "-n":
+        nonblock = True
+        i += 1
+        continue
+    if arg == "-u":
+        unlock = True
+        i += 1
+        continue
+    if arg in ("-x", "-s"):
+        i += 1
+        continue
+    fd = int(arg)
+    i += 1
+if fd is None:
+    sys.exit(2)
+try:
+    if unlock:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        sys.exit(0)
+    if nonblock or timeout is None:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        sys.exit(0)
+    deadline = time.time() + timeout
+    while True:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            sys.exit(0)
+        except OSError:
+            if time.time() >= deadline:
+                sys.exit(1)
+            time.sleep(0.05)
+except OSError:
+    sys.exit(1)
+PY
+  chmod +x "$ROOT/bin/flock"
+  PATH="$ROOT/bin:$PATH"
+  export PATH
+fi
+
 INC="$(cd "$(dirname "$0")/../../../helm-chart/oolong/scripts" && pwd)/git-publish.inc.sh"
 if [ ! -f "$INC" ]; then
   echo "missing publish include: $INC"
@@ -69,6 +132,91 @@ assert revision_complete "$REVISIONS_DIR/$SHA"
 echo "test repeated publication is idempotent"
 publish_revision
 assert test -f "$POINTER_FILE"
+
+echo "test publication failures leave the previous pointer unchanged"
+OLD_SHA="$(git -C "$WORK_DIR" rev-parse HEAD)"
+OLD_POINTER="$(tr -d '\n' < "$POINTER_FILE")"
+assert test "$OLD_POINTER" = "$OLD_SHA"
+cd "$WORK_DIR"
+commit_products "gamma"
+NEW_SHA="$(git rev-parse HEAD)"
+assert test "$NEW_SHA" != "$OLD_SHA"
+sync_worktree() {
+  return 0
+}
+
+mv() {
+  _dest=""
+  for _arg in "$@"; do
+    _dest="$_arg"
+  done
+  if [ "$_dest" = "$REVISIONS_DIR/$NEW_SHA" ]; then
+    return 1
+  fi
+  command mv "$@"
+}
+if locked_sync_and_publish; then
+  echo "ASSERT FAILED: staging rename failure reported success"
+  exit 1
+fi
+assert test "$(tr -d '\n' < "$POINTER_FILE")" = "$OLD_POINTER"
+assert test ! -d "$REVISIONS_DIR/$NEW_SHA"
+assert test ! -d "$REVISIONS_DIR/.staging-$NEW_SHA"
+unset -f mv
+
+write_text_file() {
+  case "$1" in
+    */.oolong-publish-complete) return 1 ;;
+  esac
+  printf '%s' "$2" > "$1"
+}
+if locked_sync_and_publish; then
+  echo "ASSERT FAILED: completion-marker failure reported success"
+  exit 1
+fi
+assert test "$(tr -d '\n' < "$POINTER_FILE")" = "$OLD_POINTER"
+assert test ! -d "$REVISIONS_DIR/$NEW_SHA"
+assert test ! -d "$REVISIONS_DIR/.staging-$NEW_SHA"
+
+write_text_file() {
+  case "$1" in
+    *.oolong-current-revision.new) return 1 ;;
+  esac
+  printf '%s' "$2" > "$1"
+}
+if locked_sync_and_publish; then
+  echo "ASSERT FAILED: pointer write failure reported success"
+  exit 1
+fi
+assert test "$(tr -d '\n' < "$POINTER_FILE")" = "$OLD_POINTER"
+assert test ! -f "${POINTER_FILE}.new"
+assert revision_complete "$REVISIONS_DIR/$NEW_SHA"
+
+mv() {
+  _dest=""
+  for _arg in "$@"; do
+    _dest="$_arg"
+  done
+  if [ "$_dest" = "$POINTER_FILE" ]; then
+    return 1
+  fi
+  command mv "$@"
+}
+unset -f write_text_file
+. "$INC"
+sync_worktree() {
+  return 0
+}
+if locked_sync_and_publish; then
+  echo "ASSERT FAILED: pointer rename failure reported success"
+  exit 1
+fi
+assert test "$(tr -d '\n' < "$POINTER_FILE")" = "$OLD_POINTER"
+assert test ! -f "${POINTER_FILE}.new"
+assert revision_complete "$REVISIONS_DIR/$NEW_SHA"
+unset -f mv
+unset -f sync_worktree
+. "$INC"
 
 echo "test copy failure propagates"
 rm -f "$POINTER_FILE"
@@ -163,10 +311,12 @@ assert test -d "$REVISIONS_DIR/cccccccccccccccccccccccccccccccccccccccc"
 assert test -d "$REVISIONS_DIR/dddddddddddddddddddddddddddddddddddddddd"
 assert test ! -d "$REVISIONS_DIR/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
-echo "test publish lock excludes a second writer"
+echo "test publish lock excludes a second writer until release"
 CONTENT_DIR="$ROOT/content-lock"
 mkdir -p "$CONTENT_DIR"
 acquire_publish_lock
+LOCK_FILE="$CONTENT_DIR/.oolong-publish.lock"
+assert test -f "$LOCK_FILE"
 if (
   CONTENT_DIR="$CONTENT_DIR"
   PUBLISH_LOCK_WAIT_SECONDS=1
@@ -177,22 +327,36 @@ if (
   exit 1
 fi
 release_publish_lock
+assert test -f "$LOCK_FILE"
+
+echo "test former owner release does not drop the successor lock"
 (
   CONTENT_DIR="$CONTENT_DIR"
-  PUBLISH_LOCK_WAIT_SECONDS=2
   . "$INC"
   acquire_publish_lock
+  touch "$CONTENT_DIR/successor-holds"
+  while [ ! -f "$CONTENT_DIR/successor-release" ]; do
+    sleep 0.05
+  done
   release_publish_lock
-)
-
-echo "test stale publish lock can be recovered"
-mkdir -p "$CONTENT_DIR/.oolong-publish.lock"
-touch "$CONTENT_DIR/.oolong-publish.lock/heartbeat"
-touch -t 202001010101.00 "$CONTENT_DIR/.oolong-publish.lock/heartbeat"
-PUBLISH_LOCK_STALE_SECONDS=5
-acquire_publish_lock
-assert test -d "$CONTENT_DIR/.oolong-publish.lock"
+) &
+SUCCESSOR_PID=$!
+while [ ! -f "$CONTENT_DIR/successor-holds" ]; do
+  sleep 0.05
+done
 release_publish_lock
-assert test ! -d "$CONTENT_DIR/.oolong-publish.lock"
+if (
+  CONTENT_DIR="$CONTENT_DIR"
+  PUBLISH_LOCK_WAIT_SECONDS=1
+  . "$INC"
+  acquire_publish_lock
+); then
+  echo "ASSERT FAILED: former owner release cleared the successor lock"
+  exit 1
+fi
+assert test -f "$LOCK_FILE"
+touch "$CONTENT_DIR/successor-release"
+wait "$SUCCESSOR_PID"
+assert test -f "$LOCK_FILE"
 
 echo "all git-publish integration tests passed"

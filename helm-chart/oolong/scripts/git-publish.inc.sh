@@ -5,57 +5,28 @@
 ACTIVE_POINTER_FILE="${CONTENT_DIR}/.oolong-active-revision"
 PUBLISH_COMPLETE_MARKER=".oolong-publish-complete"
 PUBLISH_LOCK_WAIT_SECONDS="${PUBLISH_LOCK_WAIT_SECONDS:-300}"
-PUBLISH_LOCK_STALE_SECONDS="${PUBLISH_LOCK_STALE_SECONDS:-30}"
 PUBLISH_LOCK_HELD=0
-PUBLISH_LOCK_HEARTBEAT_PID=""
 
-file_mtime() {
-  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1"
-}
-
-publish_lock_dir() {
+publish_lock_file() {
   printf '%s/.oolong-publish.lock' "$CONTENT_DIR"
 }
 
-lock_is_fresh() {
-  _lock="$(publish_lock_dir)"
-  _marker="$_lock/heartbeat"
-  if [ ! -e "$_marker" ]; then
-    _marker="$_lock"
-  fi
-  [ -e "$_marker" ] || return 1
-  _now="$(date +%s)"
-  _then="$(file_mtime "$_marker")"
-  [ $((_now - _then)) -lt "$PUBLISH_LOCK_STALE_SECONDS" ]
-}
-
-start_lock_heartbeat() {
-  _lock="$(publish_lock_dir)"
-  (
-    while [ -d "$_lock" ]; do
-      touch "$_lock/heartbeat" 2>/dev/null || exit 0
-      sleep 5
-    done
-  ) &
-  PUBLISH_LOCK_HEARTBEAT_PID=$!
-}
-
 acquire_publish_lock() {
-  _lock="$(publish_lock_dir)"
+  if ! command -v flock >/dev/null 2>&1; then
+    echo "ERROR: flock is required for single-writer publication"
+    return 1
+  fi
+  _lock="$(publish_lock_file)"
+  if ! : >> "$_lock"; then
+    echo "ERROR: cannot create publish lock file $_lock"
+    return 1
+  fi
+  if ! exec 9>>"$_lock"; then
+    echo "ERROR: cannot open publish lock file $_lock"
+    return 1
+  fi
   _waited=0
-  while true; do
-    if mkdir "$_lock" 2>/dev/null; then
-      touch "$_lock/heartbeat"
-      start_lock_heartbeat
-      PUBLISH_LOCK_HELD=1
-      return 0
-    fi
-    if ! lock_is_fresh; then
-      if mv "$_lock" "$_lock.stale.$$" 2>/dev/null; then
-        rm -rf "$_lock.stale.$$"
-        continue
-      fi
-    fi
+  while ! flock -n 9; do
     _waited=$((_waited + 1))
     if [ "$_waited" -ge "$PUBLISH_LOCK_WAIT_SECONDS" ]; then
       echo "ERROR: timed out waiting for publish lock"
@@ -63,19 +34,20 @@ acquire_publish_lock() {
     fi
     sleep 1
   done
+  PUBLISH_LOCK_HELD=1
+  return 0
 }
 
 release_publish_lock() {
   if [ "$PUBLISH_LOCK_HELD" != 1 ]; then
     return 0
   fi
-  if [ -n "$PUBLISH_LOCK_HEARTBEAT_PID" ]; then
-    kill "$PUBLISH_LOCK_HEARTBEAT_PID" 2>/dev/null || true
-    wait "$PUBLISH_LOCK_HEARTBEAT_PID" 2>/dev/null || true
-    PUBLISH_LOCK_HEARTBEAT_PID=""
+  if ! flock -u 9; then
+    echo "ERROR: failed to release publish lock"
+    return 1
   fi
-  rm -rf "$(publish_lock_dir)"
   PUBLISH_LOCK_HELD=0
+  return 0
 }
 
 locked_sync_and_publish() {
@@ -214,13 +186,33 @@ prune_old_revisions() {
       continue
     fi
     echo "Pruning old revision directory $_dir"
-    rm -rf "$_dir"
+    if ! rm -rf "$_dir"; then
+      echo "ERROR: failed to prune $_dir"
+      return 1
+    fi
   done
+  return 0
+}
+
+write_text_file() {
+  _path="$1"
+  _data="$2"
+  printf '%s' "$_data" > "$_path"
 }
 
 publish_revision() {
-  cd "$WORK_DIR"
-  SHA="$(git rev-parse HEAD)"
+  if ! cd "$WORK_DIR"; then
+    echo "ERROR: cannot enter work directory $WORK_DIR"
+    return 1
+  fi
+  if ! SHA="$(git rev-parse HEAD)"; then
+    echo "ERROR: cannot read HEAD"
+    return 1
+  fi
+  if [ -z "$SHA" ]; then
+    echo "ERROR: HEAD is empty"
+    return 1
+  fi
   TARGET="$REVISIONS_DIR/$SHA"
   STAGING="$REVISIONS_DIR/.staging-$SHA"
 
@@ -228,8 +220,14 @@ publish_revision() {
     echo "Revision $SHA already published"
   else
     echo "Publishing immutable revision $SHA"
-    rm -rf "$STAGING"
-    mkdir -p "$STAGING"
+    if ! rm -rf "$STAGING"; then
+      echo "ERROR: failed to clear staging for $SHA"
+      return 1
+    fi
+    if ! mkdir -p "$STAGING"; then
+      echo "ERROR: failed to create staging for $SHA"
+      return 1
+    fi
     if ! copy_worktree_except_git "$STAGING"; then
       echo "ERROR: failed to copy content for revision $SHA"
       rm -rf "$STAGING"
@@ -240,18 +238,46 @@ publish_revision() {
       rm -rf "$STAGING"
       return 1
     fi
-    printf '%s\n' "$SHA" > "$STAGING/$PUBLISH_COMPLETE_MARKER"
+    if ! write_text_file "$STAGING/$PUBLISH_COMPLETE_MARKER" "$SHA"; then
+      echo "ERROR: failed to write completion marker for $SHA"
+      rm -rf "$STAGING"
+      return 1
+    fi
     if ! revision_complete "$STAGING"; then
       echo "ERROR: published tree for $SHA is incomplete"
       rm -rf "$STAGING"
       return 1
     fi
-    rm -rf "$TARGET"
-    mv "$STAGING" "$TARGET"
+    if [ -e "$TARGET" ] && ! rm -rf "$TARGET"; then
+      echo "ERROR: failed to remove incomplete revision $SHA"
+      rm -rf "$STAGING"
+      return 1
+    fi
+    if ! mv "$STAGING" "$TARGET"; then
+      echo "ERROR: failed to rename staging directory for $SHA"
+      rm -rf "$STAGING"
+      return 1
+    fi
+    if ! revision_complete "$TARGET"; then
+      echo "ERROR: revision $SHA is incomplete after rename"
+      return 1
+    fi
   fi
 
-  printf '%s' "$SHA" > "${POINTER_FILE}.new"
-  mv "${POINTER_FILE}.new" "$POINTER_FILE"
+  if ! write_text_file "${POINTER_FILE}.new" "$SHA"; then
+    echo "ERROR: failed to write candidate pointer for $SHA"
+    rm -f "${POINTER_FILE}.new"
+    return 1
+  fi
+  if ! mv "${POINTER_FILE}.new" "$POINTER_FILE"; then
+    echo "ERROR: failed to publish candidate pointer for $SHA"
+    rm -f "${POINTER_FILE}.new"
+    return 1
+  fi
   echo "Active content revision is $SHA"
-  prune_old_revisions
+  if ! prune_old_revisions; then
+    echo "ERROR: failed to prune old revisions after $SHA"
+    return 1
+  fi
+  return 0
 }
