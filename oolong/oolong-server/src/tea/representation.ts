@@ -83,6 +83,52 @@ function sameMedia(candidate: string, requested: MediaParts): boolean {
   return true;
 }
 
+function mediaMatchesRange(formatMedia: string, range: MediaParts): boolean {
+  const format = splitMedia(formatMedia);
+  if (!format) return false;
+  const typeOk = range.type === '*' || range.type === format.type;
+  const subOk = range.subtype === '*' || range.subtype === format.subtype;
+  if (!typeOk || !subOk) return false;
+  if (range.params.size > 0 && !sameMedia(formatMedia, range)) return false;
+  return true;
+}
+
+/** Higher values are more specific Accept ranges (RFC 9110 §12.5.1). */
+function rangeSpecificity(range: MediaParts): number {
+  let score = 0;
+  if (range.type !== '*') score += 100;
+  if (range.subtype !== '*') score += 10;
+  score += range.params.size;
+  return score;
+}
+
+function effectiveQuality(
+  formatMedia: string,
+  accept: string,
+): number | undefined {
+  let bestSpecificity = -1;
+  let quality = 0;
+  let matched = false;
+  for (const piece of accept.split(',')) {
+    const range = piece.trim();
+    if (!range) continue;
+    const qMatch = /;\s*q=([0-9.]+)/i.exec(range);
+    const q = qMatch ? Number(qMatch[1]) : 1;
+    if (!Number.isFinite(q)) continue;
+    const requested = splitMedia(range);
+    if (!requested) continue;
+    if (!mediaMatchesRange(formatMedia, requested)) continue;
+    matched = true;
+    const specificity = rangeSpecificity(requested);
+    if (specificity > bestSpecificity) {
+      bestSpecificity = specificity;
+      quality = q;
+    }
+  }
+  if (!matched) return undefined;
+  return quality;
+}
+
 export function selectFormat(
   formats: ArtifactFormat[],
   mediaType: string | undefined,
@@ -103,26 +149,12 @@ export function selectFormat(
   }
   if (accept === undefined || accept.trim() === '') return formats[0];
   let best: { format: ArtifactFormat; q: number; index: number } | undefined;
-  const ranges = accept.split(',');
-  ranges.forEach((range) => {
-    const qMatch = /;\s*q=([0-9.]+)/i.exec(range);
-    const q = qMatch ? Number(qMatch[1]) : 1;
-    if (!Number.isFinite(q) || q <= 0) return;
-    const requested = splitMedia(range);
-    if (!requested) return;
-    formats.forEach((format, formatIndex) => {
-      const parts = splitMedia(format.mediaType);
-      if (!parts) return;
-      const typeOk = requested.type === '*' || requested.type === parts.type;
-      const subOk =
-        requested.subtype === '*' || requested.subtype === parts.subtype;
-      if (!typeOk || !subOk) return;
-      if (requested.params.size > 0 && !sameMedia(format.mediaType, requested))
-        return;
-      if (!best || q > best.q || (q === best.q && formatIndex < best.index)) {
-        best = { format, q, index: formatIndex };
-      }
-    });
+  formats.forEach((format, formatIndex) => {
+    const q = effectiveQuality(format.mediaType, accept);
+    if (q === undefined || q <= 0) return;
+    if (!best || q > best.q || (q === best.q && formatIndex < best.index)) {
+      best = { format, q, index: formatIndex };
+    }
   });
   if (!best) {
     throw new TeaException(406, 'NO_ACCEPTABLE_FORMAT', 'no matching format');
