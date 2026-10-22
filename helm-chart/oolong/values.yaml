@@ -72,6 +72,10 @@ gitPod:
   repoUrl: ""  # Git repository URL (required when gitPod.enabled is true)
   branch: "main"  # Git branch to sync
   syncInterval: "60"  # Sync interval in seconds
+  # Server polls for new revisions when git sync is enabled (milliseconds).
+  contentReloadIntervalMs: 60000
+  # Immutable revision directories kept on the content PVC (oldest pruned after publish).
+  revisionRetentionCount: 5
   # Security context for git pod
   securityContext:
     capabilities:
@@ -84,8 +88,8 @@ gitPod:
   env: {}
 
 # Pagination token HMAC key (required when NODE_ENV=production in the server image).
-# Default: chart creates <release-fullname>-page-token on first install only (lookup;
-# not rotated on helm upgrade). Set existingSecret to use a Secret you created instead.
+# Default: chart creates <release-fullname>-page-token (re-rendered on upgrade with the
+# existing encoded value; not rotated automatically). Set existingSecret to BYO instead.
 pageTokenSecret:
   create: true
   existingSecret: ""
@@ -99,8 +103,7 @@ env:
   API_VERSION: "v1.0.0"
   SERVER_HOST: "http://localhost:3000"
   DEBUG_MODE: "false"  # Set to "true" to enable verbose debug logging
-  # Poll for .oolong-current-revision when using the git sync sidecar (milliseconds).
-  # CONTENT_RELOAD_INTERVAL_MS: "60000"
+  # CONTENT_RELOAD_INTERVAL_MS is set automatically when gitPod.enabled and persistence are on.
 
 # Health check configuration
 healthcheck:

@@ -69,6 +69,14 @@ spec:
                 secretKeyRef:
                   name: {{ include "oolong.pageTokenSecretName" . | quote }}
                   key: {{ .Values.pageTokenSecret.secretKey | quote }}
+            {{- if and .Values.gitPod.enabled .Values.persistence.enabled }}
+            - name: CONTENT_GIT_SYNC_ENABLED
+              value: "true"
+            - name: CONTENT_AWAIT_GIT_REVISION
+              value: "true"
+            - name: CONTENT_RELOAD_INTERVAL_MS
+              value: {{ .Values.gitPod.contentReloadIntervalMs | default 60000 | quote }}
+            {{- end }}
           {{- if .Values.persistence.enabled }}
           volumeMounts:
             - name: oolong-content

@@ -24,6 +24,7 @@ data:
     POINTER_FILE="${CONTENT_DIR}/.oolong-current-revision"
     SYNC_INTERVAL="${SYNC_INTERVAL:-60}"
     GIT_BRANCH="${GIT_BRANCH:-main}"
+    REVISION_RETENTION_COUNT="${REVISION_RETENTION_COUNT:-{{ .Values.gitPod.revisionRetentionCount | default 5 }}}"
 
     echo "Configuration:"
     echo "  Repository: $GIT_REPO_URL"
@@ -31,6 +32,7 @@ data:
     echo "  Work Directory: $WORK_DIR"
     echo "  Branch: $GIT_BRANCH"
     echo "  Sync Interval: ${SYNC_INTERVAL}s"
+    echo "  Revision retention: ${REVISION_RETENTION_COUNT}"
 
     git config --global --add safe.directory "$WORK_DIR"
 
@@ -42,18 +44,57 @@ data:
       git clone --branch "$GIT_BRANCH" "$GIT_REPO_URL" "$WORK_DIR"
     fi
 
+    revision_complete() {
+      TARGET="$1"
+      [ -d "$TARGET" ] && [ -d "$TARGET/products" ]
+    }
+
+    prune_old_revisions() {
+      KEEP="$REVISION_RETENTION_COUNT"
+      [ "$KEEP" -gt 0 ] || return 0
+      TO_PRUNE="$(ls -1dt "$REVISIONS_DIR"/*/ 2>/dev/null | tail -n +"$((KEEP + 1))" || true)"
+      if [ -z "$TO_PRUNE" ]; then
+        return 0
+      fi
+      for DIR in $TO_PRUNE; do
+        case "$DIR" in
+          */.staging-*|*/.*) continue ;;
+        esac
+        echo "Pruning old revision directory $DIR"
+        rm -rf "$DIR"
+      done
+    }
+
     publish_revision() {
       cd "$WORK_DIR"
       SHA="$(git rev-parse HEAD)"
       TARGET="$REVISIONS_DIR/$SHA"
-      if [ ! -d "$TARGET" ]; then
+      STAGING="$REVISIONS_DIR/.staging-$SHA"
+
+      if revision_complete "$TARGET"; then
+        echo "Revision $SHA already published"
+      else
         echo "Publishing immutable revision $SHA"
-        mkdir -p "$TARGET"
-        find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec cp -a {} "$TARGET/" \;
+        rm -rf "$STAGING"
+        mkdir -p "$STAGING"
+        if ! find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec cp -a {} "$STAGING/" \; ; then
+          echo "ERROR: failed to copy content for revision $SHA"
+          rm -rf "$STAGING"
+          return 1
+        fi
+        if ! revision_complete "$STAGING"; then
+          echo "ERROR: published tree for $SHA is missing products/"
+          rm -rf "$STAGING"
+          return 1
+        fi
+        rm -rf "$TARGET"
+        mv "$STAGING" "$TARGET"
       fi
+
       printf '%s' "$SHA" > "${POINTER_FILE}.new"
       mv "${POINTER_FILE}.new" "$POINTER_FILE"
       echo "Active content revision is $SHA"
+      prune_old_revisions
     }
 
     cd "$WORK_DIR"
