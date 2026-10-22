@@ -29,12 +29,15 @@ export function assertPageTokenSecret(): string {
   if (typeof configured === 'string' && configured.length > 0) {
     return configured;
   }
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'PAGE_TOKEN_SECRET must be set when NODE_ENV is production',
-    );
+  const allowDevFallback =
+    process.env.PAGE_TOKEN_DEV_FALLBACK === 'true' &&
+    process.env.NODE_ENV !== 'production';
+  if (allowDevFallback) {
+    return 'oolong-dev-page-token';
   }
-  return 'oolong-dev-page-token';
+  throw new Error(
+    'PAGE_TOKEN_SECRET must be set. PAGE_TOKEN_DEV_FALLBACK=true is only for local development when NODE_ENV is not production',
+  );
 }
 
 function secret(): string {

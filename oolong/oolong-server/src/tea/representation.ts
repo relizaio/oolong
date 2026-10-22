@@ -225,6 +225,13 @@ export function sendBytes(
 }
 
 export function sendRedirect(res: Response, location: string): void {
+  if (!/^https?:\/\//i.test(location)) {
+    throw new TeaException(
+      400,
+      'INVALID_REQUEST',
+      'redirect URL must use http or https',
+    );
+  }
   res.status(302);
   res.setHeader('Location', location);
   res.end();

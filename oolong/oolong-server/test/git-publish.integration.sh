@@ -360,4 +360,47 @@ touch "$CONTENT_DIR/successor-release"
 wait "$SUCCESSOR_PID"
 assert test -f "$LOCK_FILE"
 
+echo "test retention validation rejects command substitution without executing it"
+PWN="$ROOT/retention-pwned"
+rm -f "$PWN"
+REVISION_RETENTION_COUNT='$(touch '"$PWN"'; echo 5)'
+if validate_revision_retention_count; then
+  echo "ASSERT FAILED: command-substitution retention was accepted"
+  exit 1
+fi
+assert test ! -e "$PWN"
+REVISION_RETENTION_COUNT=0
+if validate_revision_retention_count; then
+  echo "ASSERT FAILED: retention 0 was accepted"
+  exit 1
+fi
+REVISION_RETENTION_COUNT=5
+assert validate_revision_retention_count
+
+echo "test git repo URL requires https and honors the host allowlist"
+GIT_REPO_URL='http://example.invalid/repo.git'
+if validate_git_repo_url; then
+  echo "ASSERT FAILED: http:// repo URL was accepted"
+  exit 1
+fi
+GIT_REPO_URL='$(touch '"$PWN"'; echo https://example.invalid/repo.git)'
+if validate_git_repo_url; then
+  echo "ASSERT FAILED: command-substitution repo URL was accepted"
+  exit 1
+fi
+assert test ! -e "$PWN"
+GIT_REPO_URL='https://user:pass@example.invalid/repo.git'
+if validate_git_repo_url; then
+  echo "ASSERT FAILED: userinfo repo URL was accepted"
+  exit 1
+fi
+GIT_REPO_URL='https://example.invalid/repo.git'
+GIT_REPO_HOST_ALLOWLIST='github.com'
+if validate_git_repo_url; then
+  echo "ASSERT FAILED: host outside allowlist was accepted"
+  exit 1
+fi
+GIT_REPO_HOST_ALLOWLIST='example.invalid'
+assert validate_git_repo_url
+
 echo "all git-publish integration tests passed"

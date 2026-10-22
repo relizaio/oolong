@@ -29,7 +29,20 @@ data:
     POINTER_FILE="${CONTENT_DIR}/.oolong-current-revision"
     SYNC_INTERVAL="${SYNC_INTERVAL:-60}"
     GIT_BRANCH="${GIT_BRANCH:-main}"
-    REVISION_RETENTION_COUNT="${REVISION_RETENTION_COUNT:-{{ .Values.gitPod.revisionRetentionCount | default 5 }}}"
+    REVISION_RETENTION_COUNT="${REVISION_RETENTION_COUNT:-5}"
+
+    case "$REVISION_RETENTION_COUNT" in
+      ''|*[!0-9]*)
+        echo "ERROR: REVISION_RETENTION_COUNT must be a positive integer" >&2
+        exit 1
+        ;;
+    esac
+
+    if [ "$REVISION_RETENTION_COUNT" -lt 1 ] ||
+       [ "$REVISION_RETENTION_COUNT" -gt 1000 ]; then
+      echo "ERROR: REVISION_RETENTION_COUNT must be between 1 and 1000" >&2
+      exit 1
+    fi
 
     echo "Configuration:"
     echo "  Repository: $GIT_REPO_URL"
@@ -40,10 +53,17 @@ data:
     echo "  Revision retention: ${REVISION_RETENTION_COUNT}"
 
     git config --global --add safe.directory "$WORK_DIR"
+    git config --global protocol.file.allow never
+    git config --global protocol.git.allow never
+    git config --global protocol.ssh.allow never
+    git config --global protocol.ext.allow never
+    git config --global protocol.http.allow never
 
     mkdir -p "$REVISIONS_DIR"
 
     . /scripts/git-publish.inc.sh
+
+    validate_git_repo_url || exit 1
 
     locked_sync_and_publish
 

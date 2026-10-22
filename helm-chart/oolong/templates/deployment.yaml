@@ -5,11 +5,12 @@ metadata:
   name: {{ include "oolong.fullname" . }}
   labels:
     {{- include "oolong.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "oolong.selectorLabels" . | nindent 6 }}
+      {{- include "oolong.serverSelectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -17,7 +18,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "oolong.selectorLabels" . | nindent 8 }}
+        {{- include "oolong.serverSelectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

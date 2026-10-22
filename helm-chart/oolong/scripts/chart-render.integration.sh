@@ -85,13 +85,80 @@ SERVER_STRATEGY="$(awk '
 assert test "$GIT_STRATEGY" = "Recreate"
 assert test "$SERVER_STRATEGY" != "Recreate"
 
-echo "test checksum changes only when the rendered Git ConfigMap changes"
+echo "test retention is an env var and is not interpolated into git-sync.sh"
+assert grep -q 'name: REVISION_RETENTION_COUNT' "$RENDER_A"
+assert grep -q 'value: "5"' "$RENDER_A"
+assert grep -q 'value: "8"' "$RENDER_B"
+if grep -q 'REVISION_RETENTION_COUNT:-{{' "$RENDER_A"; then
+  echo "ASSERT FAILED: Helm interpolated retention into git-sync.sh"
+  exit 1
+fi
+if grep -F '$( ' "$RENDER_A" | grep -q REVISION; then
+  echo "ASSERT FAILED: retention env contains shell substitution"
+  exit 1
+fi
+
+echo "test server and git selectors do not overlap"
+assert grep -q 'app.kubernetes.io/component: server' "$RENDER_A"
+assert grep -q 'app.kubernetes.io/component: git' "$RENDER_A"
+python3 - "$RENDER_A" <<'PY'
+import sys
+text = open(sys.argv[1], encoding="utf-8").read()
+assert "app.kubernetes.io/component: server" in text
+assert "app.kubernetes.io/component: git" in text
+# Service selector must pin the server component so Git pods are excluded.
+svc = text.split("kind: Service", 1)[1].split("kind:", 1)[0]
+assert "app.kubernetes.io/component: server" in svc
+assert "app.kubernetes.io/component: git" not in svc
+print("selector split ok")
+PY
+
+echo "test checksum is stable when only retention changes"
 SUM_A="$(awk '/checksum\/git-script:/ { print $2; exit }' "$RENDER_A")"
 SUM_B="$(awk '/checksum\/git-script:/ { print $2; exit }' "$RENDER_B")"
 SUM_C="$(awk '/checksum\/git-script:/ { print $2; exit }' "$RENDER_C")"
 assert test -n "$SUM_A"
-assert test "$SUM_A" != "$SUM_B"
+assert test "$SUM_A" = "$SUM_B"
 assert test "$SUM_A" = "$SUM_C"
+
+echo "test helm schema rejects a command-substitution retention value without executing it"
+PWN_MARK="$(mktemp)"
+rm -f "$PWN_MARK"
+INJECT='$(touch '"$PWN_MARK"'; echo 5)'
+if helm template inject "$CHART" \
+    --set image=oolong-server:local \
+    --set gitPod.enabled=true \
+    --set gitPod.repoUrl=https://example.invalid/repo.git \
+    --set gitPod.revisionRetentionCount="$INJECT" \
+    >/tmp/oolong-helm-inject.out 2>&1; then
+  echo "ASSERT FAILED: helm template accepted \$(...) retention"
+  exit 1
+fi
+if [ -e "$PWN_MARK" ]; then
+  echo "ASSERT FAILED: \$(...) ran during helm template"
+  exit 1
+fi
+
+echo "test helm schema rejects out-of-range retention"
+if helm template range "$CHART" \
+    --set image=oolong-server:local \
+    --set gitPod.enabled=true \
+    --set gitPod.repoUrl=https://example.invalid/repo.git \
+    --set gitPod.revisionRetentionCount=0 \
+    >/tmp/oolong-helm-range.out 2>&1; then
+  echo "ASSERT FAILED: helm template accepted retention 0"
+  exit 1
+fi
+
+echo "test non-https gitPod.repoUrl is rejected"
+if helm template badurl "$CHART" \
+    --set image=oolong-server:local \
+    --set gitPod.enabled=true \
+    --set gitPod.repoUrl='http://example.invalid/repo.git' \
+    >/tmp/oolong-helm-url.out 2>&1; then
+  echo "ASSERT FAILED: helm template accepted http:// repoUrl"
+  exit 1
+fi
 
 SCRIPT_CHART="$(mktemp -d)"
 cp -R "$CHART/." "$SCRIPT_CHART/"

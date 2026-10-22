@@ -97,7 +97,7 @@ The server listens on `http://127.0.0.1:3005`.
 
 ### Development Mode
 
-Build and run with `NODE_ENV=development` (no `PAGE_TOKEN_SECRET` required):
+Build and run with `NODE_ENV=development` and the explicit pagination-key opt-in (`PAGE_TOKEN_DEV_FALLBACK=true`). That fallback is disabled whenever `NODE_ENV=production`.
 
 ```bash
 docker-compose -f docker-compose.dev.yml up -d --build
@@ -110,7 +110,9 @@ docker-compose -f docker-compose.dev.yml up -d --build
 
 **Required image override.** This chart's liveness probe (`/healthz`) and git snapshot loader are not in the published `25.10.6` image. Helm fails unless you set `image` to a build from this branch. The default `values.yaml` `image` is empty on purpose.
 
-The server image requires `PAGE_TOKEN_SECRET` when `NODE_ENV=production`. By default the chart creates a Kubernetes Secret and re-renders it on upgrade while keeping the existing encoded value. Alternatively, create a Secret yourself and set `pageTokenSecret.create=false` and `pageTokenSecret.existingSecret`.
+The server requires `PAGE_TOKEN_SECRET` unless `PAGE_TOKEN_DEV_FALLBACK=true` and `NODE_ENV` is not `production`. The chart always supplies the Secret and never sets the development fallback. Alternatively, create a Secret yourself and set `pageTokenSecret.create=false` and `pageTokenSecret.existingSecret`.
+
+The TEA API is unauthenticated by design and is intended for a public catalog. Anyone who can reach the Service can read the mounted content. For private content, require authentication at the ingress and do not expose the ClusterIP Service (or pod port) without that control. Artifact download endpoints issue `302 Location` for publisher `http`/`https` URLs stored in the catalog; the server does not fetch those URLs (not server-side SSRF). Other URI schemes remain valid on the TEA object but are not used as redirect targets.
 
 With an empty PVC, mount content via git pod or populate the volume; otherwise git mode stays unready until the first valid revision is published.
 
@@ -152,7 +154,13 @@ Do not install the published `0.0.7` chart / `25.10.6` image for this branch. Us
 
 ### Git Pod Configuration
 
-Enable automatic Git synchronization to populate content from a Git repository. Note, currently, only public repositories are supported. The Git pod uses `Recreate` and a `flock` on the shared volume so an upgrade does not run two publishers against the same checkout. The lock is held by the publishing process and is released when that process exits. It rolls when the rendered Git ConfigMap changes (`checksum/git-script`). The server keeps serving its accepted snapshot while the Git pod restarts.
+Enable automatic Git synchronization to populate content from a public HTTPS Git repository. The Git pod uses `Recreate` and a `flock` on the shared volume so an upgrade does not run two publishers against the same checkout. The lock is held by the publishing process and is released when that process exits. It rolls when the rendered Git ConfigMap changes (`checksum/git-script`). The server keeps serving its accepted snapshot while the Git pod restarts.
+
+`gitPod.repoUrl` must be `https://` with no userinfo. The Git pod disables `git://`, `ssh://`, `http://`, and `file://`. Optional `gitPod.allowedHosts` is an exact hostname allowlist. Hostname checks do not follow DNS changes or Git redirects; apply a NetworkPolicy or cluster egress control so the Git pod cannot reach internal or metadata destinations.
+
+`gitPod.revisionRetentionCount` is an integer from 1 to 1000 (`values.schema.json`). Helm passes it as the `REVISION_RETENTION_COUNT` environment variable. The Git script validates the value and never interpolates Helm values into shell text.
+
+Server pods are labeled `app.kubernetes.io/component=server` and Git pods `app.kubernetes.io/component=git`, so `kubectl logs deploy/<release>` no longer selects both. Those Deployment selectors are immutable: if an upgrade from an older chart fails, delete the two Deployments (keep the PVC) and run `helm upgrade` again.
 
 ```bash
 helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
@@ -165,9 +173,11 @@ helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
 
 **Configuration options:**
 - `gitPod.enabled` - Enable/disable Git pod (default: `false`)
-- `gitPod.repoUrl` - Git repository URL (required when enabled)
+- `gitPod.repoUrl` - Public `https://` Git URL (required when enabled)
+- `gitPod.allowedHosts` - Optional exact hostname allowlist (default: empty)
 - `gitPod.branch` - Git branch to sync (default: `main`)
 - `gitPod.syncInterval` - Sync interval in seconds (default: `60`)
+- `gitPod.revisionRetentionCount` - Revisions to keep (1-1000, default: `5`)
 - `gitPod.mountPath` - Mount path for content (default: `/content`)
 
 The Git pod treats `/_work` as a disposable checkout: it fetches `gitPod.branch`, checks out that exact commit, copies it into `/content/revisions/<sha>/`, and atomically updates `/content/.oolong-current-revision`. The server polls automatically when git sync is enabled. Invalid revisions are rejected and the previous snapshot keeps serving.

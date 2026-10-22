@@ -1,4 +1,5 @@
 {{- if and .Values.gitPod.enabled .Values.persistence.enabled }}
+{{- include "oolong.requireGitRepoUrl" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -12,8 +13,7 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      {{- include "oolong.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: git
+      {{- include "oolong.gitSelectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
@@ -22,8 +22,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "oolong.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: git
+        {{- include "oolong.gitSelectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -44,20 +43,26 @@ spec:
             {{- toYaml .Values.gitPod.resources | nindent 12 }}
           {{- end }}
           env:
+            {{- range $key, $value := .Values.gitPod.env }}
+            {{- if not (has $key (list "GIT_REPO_URL" "GIT_BRANCH" "GIT_REPO_HOST_ALLOWLIST" "REVISION_RETENTION_COUNT" "CONTENT_DIR" "SYNC_INTERVAL" "HOME")) }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
             - name: HOME
               value: "/tmp/git-home"
             - name: GIT_REPO_URL
               value: {{ .Values.gitPod.repoUrl | quote }}
             - name: GIT_BRANCH
               value: {{ .Values.gitPod.branch | default "main" | quote }}
+            - name: GIT_REPO_HOST_ALLOWLIST
+              value: {{ .Values.gitPod.allowedHosts | default list | join "," | quote }}
             - name: CONTENT_DIR
               value: {{ .Values.gitPod.mountPath | quote }}
             - name: SYNC_INTERVAL
               value: {{ .Values.gitPod.syncInterval | default "60" | quote }}
-            {{- range $key, $value := .Values.gitPod.env }}
-            - name: {{ $key }}
-              value: {{ $value | quote }}
-            {{- end }}
+            - name: REVISION_RETENTION_COUNT
+              value: {{ .Values.gitPod.revisionRetentionCount | quote }}
           volumeMounts:
             - name: oolong-content
               mountPath: {{ .Values.gitPod.mountPath }}

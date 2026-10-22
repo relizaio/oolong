@@ -7,6 +7,67 @@ PUBLISH_COMPLETE_MARKER=".oolong-publish-complete"
 PUBLISH_LOCK_WAIT_SECONDS="${PUBLISH_LOCK_WAIT_SECONDS:-300}"
 PUBLISH_LOCK_HELD=0
 
+validate_revision_retention_count() {
+  case "$REVISION_RETENTION_COUNT" in
+    ''|*[!0-9]*)
+      echo "ERROR: REVISION_RETENTION_COUNT must be a positive integer" >&2
+      return 1
+      ;;
+  esac
+  if [ "$REVISION_RETENTION_COUNT" -lt 1 ] ||
+     [ "$REVISION_RETENTION_COUNT" -gt 1000 ]; then
+    echo "ERROR: REVISION_RETENTION_COUNT must be between 1 and 1000" >&2
+    return 1
+  fi
+  return 0
+}
+
+validate_git_repo_url() {
+  case "$GIT_REPO_URL" in
+    https://*)
+      ;;
+    *)
+      echo "ERROR: GIT_REPO_URL must use https://" >&2
+      return 1
+      ;;
+  esac
+  _rest="${GIT_REPO_URL#https://}"
+  case "$_rest" in
+    *@*)
+      echo "ERROR: GIT_REPO_URL must not include userinfo" >&2
+      return 1
+      ;;
+  esac
+  _hostport="${_rest%%/*}"
+  if [ -z "$_hostport" ]; then
+    echo "ERROR: GIT_REPO_URL is missing a host" >&2
+    return 1
+  fi
+  _host="${_hostport%%:*}"
+  if [ -z "$_host" ]; then
+    echo "ERROR: GIT_REPO_URL is missing a host" >&2
+    return 1
+  fi
+  if [ -n "$GIT_REPO_HOST_ALLOWLIST" ]; then
+    _ok=0
+    _oldifs="$IFS"
+    IFS=,
+    for _allowed in $GIT_REPO_HOST_ALLOWLIST; do
+      [ -z "$_allowed" ] && continue
+      if [ "$_host" = "$_allowed" ]; then
+        _ok=1
+        break
+      fi
+    done
+    IFS="$_oldifs"
+    if [ "$_ok" != 1 ]; then
+      echo "ERROR: GIT_REPO_URL host $_host is not in GIT_REPO_HOST_ALLOWLIST" >&2
+      return 1
+    fi
+  fi
+  return 0
+}
+
 publish_lock_file() {
   printf '%s/.oolong-publish.lock' "$CONTENT_DIR"
 }

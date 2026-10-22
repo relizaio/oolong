@@ -12,3 +12,4 @@ services:
       - API_VERSION=v1.0.0
       - SERVER_HOST=http://127.0.0.1:3005
       - CONTENT_DIR=/app/src/content
+      - PAGE_TOKEN_DEV_FALLBACK=true

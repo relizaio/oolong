@@ -10,17 +10,24 @@ import {
 describe('PAGE_TOKEN_SECRET', () => {
   const previousNodeEnv = process.env.NODE_ENV;
   const previousSecret = process.env.PAGE_TOKEN_SECRET;
+  const previousFallback = process.env.PAGE_TOKEN_DEV_FALLBACK;
 
   afterEach(() => {
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = previousNodeEnv;
     if (previousSecret === undefined) delete process.env.PAGE_TOKEN_SECRET;
     else process.env.PAGE_TOKEN_SECRET = previousSecret;
+    if (previousFallback === undefined) delete process.env.PAGE_TOKEN_DEV_FALLBACK;
+    else process.env.PAGE_TOKEN_DEV_FALLBACK = previousFallback;
   });
 
-  it('allows the development fallback and honors an explicit secret', () => {
+  it('requires a secret unless the development fallback is opted in', () => {
     delete process.env.PAGE_TOKEN_SECRET;
+    delete process.env.PAGE_TOKEN_DEV_FALLBACK;
     process.env.NODE_ENV = 'test';
+    expect(() => assertPageTokenSecret()).toThrow(/PAGE_TOKEN_SECRET/);
+
+    process.env.PAGE_TOKEN_DEV_FALLBACK = 'true';
     const open = signToken({
       op: 'products',
       parent: '',
@@ -53,8 +60,9 @@ describe('PAGE_TOKEN_SECRET', () => {
     );
   });
 
-  it('rejects production startup without a secret and accepts one when set', () => {
+  it('rejects production without a secret even when the development fallback is set', () => {
     process.env.NODE_ENV = 'production';
+    process.env.PAGE_TOKEN_DEV_FALLBACK = 'true';
     delete process.env.PAGE_TOKEN_SECRET;
     expect(() => assertPageTokenSecret()).toThrow(/PAGE_TOKEN_SECRET/);
     process.env.PAGE_TOKEN_SECRET = 'production-configured';

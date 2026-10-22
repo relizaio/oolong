@@ -72,12 +72,17 @@ gitPod:
     #   cpu: 50m
     #   memory: 64Mi
   # Git repository configuration
-  repoUrl: ""  # Git repository URL (required when gitPod.enabled is true)
+  repoUrl: ""  # Public https:// Git URL (required when gitPod.enabled is true)
+  # Optional exact-match hostname allowlist. Empty allows any https host.
+  # Hostname checks do not follow DNS changes or Git redirects; restrict
+  # Git-pod egress with a NetworkPolicy or cluster egress control.
+  allowedHosts: []
   branch: "main"  # Git branch to sync
   syncInterval: "60"  # Sync interval in seconds
   # Server polls for new revisions when git sync is enabled (milliseconds).
   contentReloadIntervalMs: 60000
   # Immutable revision directories kept on the content PVC (oldest pruned after publish).
+  # Integer 1-1000, passed as REVISION_RETENTION_COUNT. Not interpolated into shell.
   revisionRetentionCount: 5
   # Security context for git pod
   securityContext:
@@ -90,7 +95,8 @@ gitPod:
   # Additional environment variables for git pod
   env: {}
 
-# Pagination token HMAC key (required when NODE_ENV=production in the server image).
+# Pagination token HMAC key (required unless PAGE_TOKEN_DEV_FALLBACK=true and
+# NODE_ENV is not production). The chart never sets that opt-in.
 # Default: chart creates <release-fullname>-page-token (re-rendered on upgrade with the
 # existing encoded value; not rotated automatically). Set existingSecret to BYO instead.
 pageTokenSecret:

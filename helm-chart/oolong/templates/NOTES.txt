@@ -3,12 +3,15 @@ Oolong installed
 This chart requires an explicit compatible server image (image={{ .Values.image }}).
 The published 25.10.6 registry image does not implement /healthz or git snapshot reload.
 
-Pagination requires PAGE_TOKEN_SECRET in production. This release uses Secret "{{ include "oolong.pageTokenSecretName" . }}" (key {{ .Values.pageTokenSecret.secretKey }}).
+The TEA API is unauthenticated. This chart is for a public catalog. For private content, require authentication at the ingress and do not expose the Service directly.
+Artifact download redirects follow publisher http/https URLs only; that is not server-side SSRF.
+Pagination requires PAGE_TOKEN_SECRET. This release uses Secret "{{ include "oolong.pageTokenSecretName" . }}" (key {{ .Values.pageTokenSecret.secretKey }}). The development fallback (PAGE_TOKEN_DEV_FALLBACK) is not set by this chart.
 {{- if and .Values.pageTokenSecret.create (not .Values.pageTokenSecret.existingSecret) }}
 The chart-managed Secret is re-rendered on upgrade and keeps its existing encoded value.
 {{- else if .Values.pageTokenSecret.existingSecret }}
 You supplied pageTokenSecret.existingSecret; ensure that Secret exists in namespace {{ .Release.Namespace }}.
 {{- end }}
+Server pods are labeled app.kubernetes.io/component=server and Git pods use component=git. kubectl logs deploy/{{ include "oolong.fullname" . }} selects only the server. If Helm reports a Deployment selector is immutable, delete the server and Git Deployments (keep the PVC) and upgrade again.
 
 {{- if .Values.persistence.enabled }}
 Content is read from the PVC at /app/src/content. An empty volume hides the image's bundled fixtures until you populate it or enable gitPod.
@@ -16,6 +19,9 @@ Content is read from the PVC at /app/src/content. An empty volume hides the imag
 The server uses the bundled fixtures baked into the image at /app/src/content.
 {{- end }}
 
+{{- if and .Values.gitPod.enabled .Values.persistence.enabled }}
+Git sync accepts only https:// remotes. Optional gitPod.allowedHosts is an exact hostname allowlist. Restrict Git-pod egress (NetworkPolicy or cluster egress) so internal and metadata destinations stay unreachable; hostname checks do not follow DNS changes or Git redirects.
+{{- end }}
 {{- if .Values.useTraefikLe }}
 Oolong is accessible via Traefik at:
    https://{{ .Values.ingressHost }}

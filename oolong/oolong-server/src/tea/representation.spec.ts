@@ -1,6 +1,10 @@
 import { TeaException } from './errors';
 import type { ArtifactFormat } from './content-store';
-import { assertAdvertisedVersion, selectFormat } from './representation';
+import {
+  assertAdvertisedVersion,
+  selectFormat,
+  sendRedirect,
+} from './representation';
 
 function formats(types: string[]): ArtifactFormat[] {
   return types.map((mediaType) => ({ mediaType }));
@@ -75,5 +79,48 @@ describe('selectFormat', () => {
   it('keeps the first format at equal quality', () => {
     const chosen = selectFormat(jsonXml, undefined, '*/*');
     expect(chosen.mediaType).toBe('application/json');
+  });
+});
+
+describe('sendRedirect', () => {
+  function response() {
+    const headers = new Map<string, string>();
+    return {
+      statusCode: 0,
+      headers,
+      status(code: number) {
+        this.statusCode = code;
+        return this;
+      },
+      setHeader(name: string, value: string) {
+        headers.set(name, value);
+      },
+      end() {
+        return this;
+      },
+    };
+  }
+
+  it('issues 302 for http and https publisher URLs', () => {
+    const httpRes = response();
+    sendRedirect(httpRes as never, 'http://example.invalid/sbom.json');
+    expect(httpRes.statusCode).toBe(302);
+    expect(httpRes.headers.get('Location')).toBe(
+      'http://example.invalid/sbom.json',
+    );
+    const httpsRes = response();
+    sendRedirect(httpsRes as never, 'https://example.invalid/sbom.json');
+    expect(httpsRes.headers.get('Location')).toBe(
+      'https://example.invalid/sbom.json',
+    );
+  });
+
+  it('rejects non-http redirect schemes', () => {
+    expect(() => sendRedirect(response() as never, 'file:///etc/passwd')).toThrow(
+      TeaException,
+    );
+    expect(() =>
+      sendRedirect(response() as never, 'javascript:alert(1)'),
+    ).toThrow(TeaException);
   });
 });
