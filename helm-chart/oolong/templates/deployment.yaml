@@ -37,7 +37,7 @@ spec:
           {{- if .Values.healthcheck.enabled }}
           livenessProbe:
             httpGet:
-              path: {{ .Values.healthcheck.path }}
+              path: {{ .Values.healthcheck.livenessPath | default "/healthz" }}
               port: http
             initialDelaySeconds: {{ .Values.healthcheck.initialDelaySeconds }}
             periodSeconds: {{ .Values.healthcheck.periodSeconds }}
@@ -46,7 +46,7 @@ spec:
             failureThreshold: {{ .Values.healthcheck.failureThreshold }}
           readinessProbe:
             httpGet:
-              path: {{ .Values.healthcheck.path }}
+              path: {{ .Values.healthcheck.readinessPath | default .Values.healthcheck.path }}
               port: http
             initialDelaySeconds: {{ .Values.healthcheck.initialDelaySeconds }}
             periodSeconds: {{ .Values.healthcheck.periodSeconds }}

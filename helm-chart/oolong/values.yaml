@@ -109,6 +109,8 @@ env:
 healthcheck:
   enabled: true
   path: "/.well-known/tea"
+  livenessPath: "/healthz"
+  readinessPath: "/.well-known/tea"
   initialDelaySeconds: 15
   periodSeconds: 30
   timeoutSeconds: 10

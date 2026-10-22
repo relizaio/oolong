@@ -33,7 +33,9 @@ export async function createApp(): Promise<INestApplication> {
     }) as Response['json'];
     next();
   });
-  app.setGlobalPrefix(API_PREFIX, { exclude: ['.well-known/tea'] });
+  app.setGlobalPrefix(API_PREFIX, {
+    exclude: ['.well-known/tea', 'healthz'],
+  });
   app.useGlobalFilters(new TeaExceptionFilter());
   return app;
 }

@@ -68,15 +68,18 @@ export class TeaExceptionFilter implements ExceptionFilter {
       sendJson(req, res, exception.status, body);
       return;
     }
-    if (exception instanceof HttpException && exception.getStatus() === 404) {
-      const payload = exception.getResponse();
-      sendJson(
-        req,
-        res,
-        404,
-        typeof payload === 'string' ? { message: payload } : payload,
-      );
-      return;
+    if (exception instanceof HttpException) {
+      const status = exception.getStatus();
+      if (status === 404 || status === 503) {
+        const payload = exception.getResponse();
+        sendJson(
+          req,
+          res,
+          status,
+          typeof payload === 'string' ? { message: payload } : payload,
+        );
+        return;
+      }
     }
     sendJson(req, res, 500, { message: 'Internal server error' });
   }
