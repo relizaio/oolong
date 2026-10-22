@@ -172,6 +172,13 @@ helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
 
 The Git pod treats `/_work` as a disposable checkout: it fetches `gitPod.branch`, checks out that exact commit, copies it into `/content/revisions/<sha>/`, and atomically updates `/content/.oolong-current-revision`. The server polls automatically when git sync is enabled. Invalid revisions are rejected and the previous snapshot keeps serving.
 
+A TEA 1.0.0 conversion of the conference demo catalog lives in the sibling
+`conferences-oolong-content-2025-11` clone
+([Reliza-Demos/conferences-oolong-content-2025-11](https://github.com/Reliza-Demos/conferences-oolong-content-2025-11)).
+After that conversion is pushed, set `gitPod.repoUrl` to that repository. The
+`conference-git-live` end-to-end test publishes a local clone of that tree,
+renames Kauf Bulb, and checks that `/v1.0.0/products` returns the new name.
+
 
 ## Generation from TEA OpenAPI Specification
 
