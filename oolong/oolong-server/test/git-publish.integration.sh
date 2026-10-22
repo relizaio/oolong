@@ -302,9 +302,10 @@ write_complete_revision "cccccccccccccccccccccccccccccccccccccccc" "new-cand"
 write_complete_revision "dddddddddddddddddddddddddddddddddddddddd" "eligible-newer"
 printf '%s' "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" > "$ACTIVE_POINTER_FILE"
 printf '%s' "cccccccccccccccccccccccccccccccccccccccc" > "$POINTER_FILE"
-sleep 1
-touch "$REVISIONS_DIR/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-touch "$REVISIONS_DIR/dddddddddddddddddddddddddddddddddddddddd"
+# Distinct seconds: published commits oldest, bbbb next, dddd newest eligible.
+touch -t 202001010000.00 "$REVISIONS_DIR/$MAIN_SHA" "$REVISIONS_DIR/$OTHER_SHA"
+touch -t 202001010001.00 "$REVISIONS_DIR/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+touch -t 202001010002.00 "$REVISIONS_DIR/dddddddddddddddddddddddddddddddddddddddd"
 prune_old_revisions
 assert test -d "$REVISIONS_DIR/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 assert test -d "$REVISIONS_DIR/cccccccccccccccccccccccccccccccccccccccc"
