@@ -49,3 +49,25 @@ Selector labels
 app.kubernetes.io/name: {{ include "oolong.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Kubernetes Secret name for pagination HMAC signing.
+*/}}
+{{- define "oolong.pageTokenSecretName" -}}
+{{- if .Values.pageTokenSecret.existingSecret -}}
+{{- .Values.pageTokenSecret.existingSecret -}}
+{{- else -}}
+{{- printf "%s-page-token" (include "oolong.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Fail fast when the chart is not allowed to create a secret and none was named.
+*/}}
+{{- define "oolong.requirePageTokenSecret" -}}
+{{- if not .Values.pageTokenSecret.create -}}
+{{- if not .Values.pageTokenSecret.existingSecret -}}
+{{- fail "pageTokenSecret.existingSecret is required when pageTokenSecret.create is false" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

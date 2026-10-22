@@ -83,6 +83,17 @@ gitPod:
   # Additional environment variables for git pod
   env: {}
 
+# Pagination token HMAC key (required when NODE_ENV=production in the server image).
+# Default: chart creates <release-fullname>-page-token on first install only (lookup;
+# not rotated on helm upgrade). Set existingSecret to use a Secret you created instead.
+pageTokenSecret:
+  create: true
+  existingSecret: ""
+  secretKey: PAGE_TOKEN_SECRET
+  # Optional fixed value on first install when create=true and existingSecret is empty.
+  # Leave empty to generate a random value once.
+  value: ""
+
 # Environment variables
 env:
   API_VERSION: "v1.0.0"

@@ -58,9 +58,17 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
             {{- range $key, $value := .Values.env }}
+            {{- if ne $key "PAGE_TOKEN_SECRET" }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
+            {{- end }}
+            {{- include "oolong.requirePageTokenSecret" . }}
+            - name: PAGE_TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "oolong.pageTokenSecretName" . | quote }}
+                  key: {{ .Values.pageTokenSecret.secretKey | quote }}
           {{- if .Values.persistence.enabled }}
           volumeMounts:
             - name: oolong-content

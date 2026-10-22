@@ -42,7 +42,7 @@ OpenAPI Generator CLI 7.16.0 was run outside `src/generated-nest`. The models ke
 
 `oolong/docker-compose.tea-interop.yml` builds the local Dockerfile, publishes `127.0.0.1:3005:3000`, mounts the fixtures read-only, and sets `SERVER_HOST=http://127.0.0.1:3005` and `TEA_SPEC_COMMIT=962a0228af1bfcc1232ac3f79239317ff33fdb04`. The image runs as uid 10001. On 2026-10-10 the stack became healthy: `/.well-known/tea` advertised `1.0.0` at `http://127.0.0.1:3005`, and `GET /v1.0.0/products` returned 200. The stack was then stopped.
 
-`docker-compose.yml` keeps `API_VERSION=v0.2.0-beta.2` because it still runs the registry image. Its content mount is `./content`. Helm `env.API_VERSION` is `v1.0.0`. The chart version and image digest were not changed, so that chart is not the interop deployment.
+`docker-compose.yml` builds the local production image, mounts `fixtures/tea-1.0.0`, sets `API_VERSION=v1.0.0`, and requires `PAGE_TOKEN_SECRET`. Helm wires `PAGE_TOKEN_SECRET` from a Kubernetes Secret (chart-created on first install or `pageTokenSecret.existingSecret`). The default chart image digest is still the published registry build until you override `image` for this fork.
 
 ## Audit notes
 

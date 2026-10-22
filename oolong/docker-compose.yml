@@ -1,10 +1,20 @@
 services:
   oolong-server:
-    image: registry.relizahub.com/library/oolong-server
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "3005:3000"
+      - "127.0.0.1:3005:3000"
     volumes:
-      - ./content:/app/src/content
+      - ./fixtures/tea-1.0.0:/app/src/content:ro
     environment:
-      - API_VERSION=v0.2.0-beta.2
-      - SERVER_HOST=http://localhost:3005
+      API_VERSION: v1.0.0
+      SERVER_HOST: http://127.0.0.1:3005
+      CONTENT_DIR: /app/src/content
+      PAGE_TOKEN_SECRET: ${PAGE_TOKEN_SECRET:?Set PAGE_TOKEN_SECRET in the environment or a .env file beside this compose file}
+    healthcheck:
+      test: ["CMD", "node", "tea-ready.js"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

@@ -75,6 +75,7 @@ docker run -p 127.0.0.1:3000:3000 \
   -e API_VERSION=v1.0.0 \
   -e CONTENT_DIR=/app/src/content \
   -e SERVER_HOST=https://myserver.com/tea \
+  -e PAGE_TOKEN_SECRET="$(openssl rand -base64 48)" \
   oolong-local
 ```
 
@@ -82,37 +83,62 @@ It is possible to mount the content directory to the container and use it as a v
 
 ## Run with Docker Compose
 
-### Production Mode
+### Production-style Compose (local image)
 
-Use the pre-built image from the registry:
+Builds the production image (`NODE_ENV=production`), mounts `fixtures/tea-1.0.0`, and requires `PAGE_TOKEN_SECRET`:
 
 ```bash
-docker-compose up -d
+cd oolong
+cp .env.example .env   # edit PAGE_TOKEN_SECRET
+docker compose up -d --build
 ```
 
-This will run the server on `http://localhost:3005` using the image from `registry.relizahub.com/library/oolong-server`.
+The server listens on `http://127.0.0.1:3005`.
 
 ### Development Mode
 
-Build and run from local Dockerfile with development settings:
+Build and run with `NODE_ENV=development` (no `PAGE_TOKEN_SECRET` required):
 
 ```bash
 docker-compose -f docker-compose.dev.yml up -d --build
 ```
 
-This will build the image locally and run with `NODE_ENV=development`.
-
-`docker-compose.yml` still points at the registry image and `API_VERSION=v0.2.0-beta.2`. Its content mount is `./content` relative to `oolong/`.
-
-`docker-compose.dev.yml` and `docker-compose.tea-interop.yml` build this tree, advertise `1.0.0`, and mount `./fixtures/tea-1.0.0` read-only on `127.0.0.1:3005`. The interop file sets `SERVER_HOST=http://127.0.0.1:3005` and `TEA_SPEC_COMMIT=962a0228af1bfcc1232ac3f79239317ff33fdb04`. Readiness checks that `/.well-known/tea` advertises `1.0.0` and that `/v1.0.0/products` returns 200.
+`docker-compose.tea-interop.yml` is the pinned-spec interop profile: same fixtures, `TEA_SPEC_COMMIT=962a0228af1bfcc1232ac3f79239317ff33fdb04`, and a fixed local `PAGE_TOKEN_SECRET` for CI-style checks.
 
 
 ## Installation via helm chart
 
+The server image requires `PAGE_TOKEN_SECRET` when `NODE_ENV=production`. By default the chart creates a Kubernetes Secret on **first install only** (stable across `helm upgrade`). Alternatively, create a Secret yourself and set `pageTokenSecret.create=false` and `pageTokenSecret.existingSecret`.
+
+With an empty PVC, mount content via git pod or populate the volume; otherwise the pod serves an empty content root instead of the image fixtures.
+
 ### Using local chart (development mode)
+
+Default install (chart creates `PAGE_TOKEN_SECRET` once):
+
 ```bash
 helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
     --version 0.0.7
+```
+
+Local image on kind (after `kind load docker-image oolong-server:local`):
+
+```bash
+helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
+  --set image=oolong-server:local \
+  --set persistence.enabled=false \
+  --set env.SERVER_HOST='http://127.0.0.1:3000'
+```
+
+Bring your own Secret:
+
+```bash
+kubectl create namespace oolong
+kubectl create secret generic oolong-page-token -n oolong \
+  --from-literal=PAGE_TOKEN_SECRET="$(openssl rand -base64 48)"
+helm upgrade --install -n oolong oolong helm-chart/oolong \
+  --set pageTokenSecret.create=false \
+  --set pageTokenSecret.existingSecret=oolong-page-token
 ```
 
 Sample installation on k3d:

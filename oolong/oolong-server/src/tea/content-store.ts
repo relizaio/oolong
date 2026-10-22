@@ -311,9 +311,13 @@ function walkFiles(
   dir: string,
   name: string,
   out: string[],
+  visited?: Set<string>,
 ): void {
   const realDir = guard.realpathIfInside(dir);
   if (!realDir) return;
+  const seen = visited ?? new Set<string>();
+  if (seen.has(realDir)) return;
+  seen.add(realDir);
   const dirStat = fs.statSync(realDir);
   if (!dirStat.isDirectory()) return;
   for (const ent of fs.readdirSync(realDir, { withFileTypes: true })) {
@@ -323,11 +327,11 @@ function walkFiles(
       const target = guard.realpathIfInside(full);
       if (!target) continue;
       const st = fs.statSync(target);
-      if (st.isDirectory()) walkFiles(guard, target, name, out);
+      if (st.isDirectory()) walkFiles(guard, target, name, out, seen);
       else if (st.isFile() && ent.name === name) out.push(target);
       continue;
     }
-    if (ent.isDirectory()) walkFiles(guard, full, name, out);
+    if (ent.isDirectory()) walkFiles(guard, full, name, out, seen);
     else if (ent.isFile() && ent.name === name) out.push(full);
   }
 }
