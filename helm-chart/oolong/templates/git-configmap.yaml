@@ -38,25 +38,19 @@ data:
 
     mkdir -p "$REVISIONS_DIR"
 
-    if [ ! -d "$WORK_DIR/.git" ]; then
-      echo "Cloning repository into work directory..."
-      rm -rf "$WORK_DIR"
-      git clone --branch "$GIT_BRANCH" "$GIT_REPO_URL" "$WORK_DIR"
-    fi
-
     . /scripts/git-publish.inc.sh
 
-    cd "$WORK_DIR"
+    sync_worktree
     publish_revision
 
     echo "Starting sync loop..."
     while true; do
-      echo "$(date '+%Y-%m-%d %H:%M:%S') - Pulling latest changes..."
-      if git pull origin "$GIT_BRANCH"; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - Fetching $GIT_BRANCH..."
+      if sync_worktree; then
         publish_revision
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - Pull successful"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Sync successful"
       else
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - Pull failed, will retry"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Sync failed, will retry"
       fi
       sleep "$SYNC_INTERVAL"
     done

@@ -1,5 +1,6 @@
 # Shared git content publication helpers (sourced by git-sync.sh and shell tests).
-# Expects CONTENT_DIR, REVISIONS_DIR, POINTER_FILE, REVISION_RETENTION_COUNT.
+# Expects CONTENT_DIR, WORK_DIR, REVISIONS_DIR, POINTER_FILE,
+# REVISION_RETENTION_COUNT, GIT_REPO_URL, and GIT_BRANCH.
 
 ACTIVE_POINTER_FILE="${CONTENT_DIR}/.oolong-active-revision"
 PUBLISH_COMPLETE_MARKER=".oolong-publish-complete"
@@ -27,6 +28,53 @@ revision_dir_protected() {
   [ -n "$_cand" ] && [ "$_base" = "$_cand" ] && return 0
   [ -n "$_active" ] && [ "$_base" = "$_active" ] && return 0
   return 1
+}
+
+sync_worktree() {
+  if [ -z "$GIT_REPO_URL" ] || [ -z "$GIT_BRANCH" ]; then
+    echo "ERROR: GIT_REPO_URL and GIT_BRANCH are required"
+    return 1
+  fi
+
+  if [ -d "$WORK_DIR/.git" ]; then
+    if ! git -C "$WORK_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+      echo "Work checkout is unusable; replacing it"
+      rm -rf "$WORK_DIR"
+    else
+      _url="$(git -C "$WORK_DIR" remote get-url origin 2>/dev/null || true)"
+      if [ "$_url" != "$GIT_REPO_URL" ]; then
+        echo "Repository URL changed; replacing work checkout"
+        rm -rf "$WORK_DIR"
+      fi
+    fi
+  fi
+
+  if [ ! -d "$WORK_DIR/.git" ]; then
+    echo "Cloning repository into work directory..."
+    rm -rf "$WORK_DIR"
+    if ! git clone --no-checkout "$GIT_REPO_URL" "$WORK_DIR"; then
+      echo "ERROR: git clone failed"
+      rm -rf "$WORK_DIR"
+      return 1
+    fi
+  fi
+
+  cd "$WORK_DIR"
+  if ! git fetch --force origin "$GIT_BRANCH"; then
+    echo "ERROR: git fetch failed for $GIT_BRANCH"
+    return 1
+  fi
+  _sha="$(git rev-parse FETCH_HEAD)"
+  if [ -z "$_sha" ]; then
+    echo "ERROR: fetched revision is empty"
+    return 1
+  fi
+  if ! git checkout --force --detach "$_sha"; then
+    echo "ERROR: checkout of $_sha failed"
+    return 1
+  fi
+  git clean -fdx
+  echo "Work checkout is $_sha from $GIT_BRANCH"
 }
 
 copy_worktree_except_git() {

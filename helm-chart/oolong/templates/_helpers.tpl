@@ -71,3 +71,16 @@ Fail fast when the chart is not allowed to create a secret and none was named.
 {{- end -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+This chart's probes and git snapshot loader are not in the published 25.10.6 image.
+Fail closed until a compatible image is set explicitly.
+*/}}
+{{- define "oolong.requireCompatibleImage" -}}
+{{- if not .Values.image -}}
+{{- fail "image is required. The published 25.10.6 image is incompatible with this chart (/healthz and git snapshot reload). Set --set image=<compatible-image>, for example oolong-server:local." -}}
+{{- end -}}
+{{- if contains "oolong-server:25.10.6" .Values.image -}}
+{{- fail "image 25.10.6 is incompatible with this chart: it does not implement /healthz or git snapshot reload. Set --set image=<compatible-image> built from this branch." -}}
+{{- end -}}
+{{- end -}}

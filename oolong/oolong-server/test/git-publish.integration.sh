@@ -84,6 +84,68 @@ if PATH="$FAILBIN:$PATH" publish_revision; then
 fi
 assert test ! -f "$POINTER_FILE"
 
+echo "test switching divergent branches"
+REMOTE="$ROOT/remote.git"
+STAGE="$ROOT/stage"
+_template="$(mktemp -d)"
+git init -q --bare --template="$_template" "$REMOTE"
+rmdir "$_template" 2>/dev/null || true
+_template="$(mktemp -d)"
+git init -q --template="$_template" "$STAGE"
+rmdir "$_template" 2>/dev/null || true
+cd "$STAGE"
+git config user.email "test@example.com"
+git config user.name "Test"
+mkdir -p products/shared
+printf 'uuid: 11111111-1111-4111-8111-111111111111\nname: Shared\nidentifiers: []\n' \
+  > products/shared/product.yaml
+git add .
+git commit -q -m "shared"
+git branch -M main
+printf 'uuid: 11111111-1111-4111-8111-111111111111\nname: Main Only\nidentifiers: []\n' \
+  > products/shared/product.yaml
+mkdir -p products/main-only
+printf 'uuid: 11111111-1111-4111-8111-111111111111\nname: Main Extra\nidentifiers: []\n' \
+  > products/main-only/product.yaml
+git add .
+git commit -q -m "main-only"
+git push -q "$REMOTE" main
+git checkout -q -B other HEAD~
+printf 'uuid: 11111111-1111-4111-8111-111111111111\nname: Other Only\nidentifiers: []\n' \
+  > products/shared/product.yaml
+mkdir -p products/other-only
+printf 'uuid: 11111111-1111-4111-8111-111111111111\nname: Other Extra\nidentifiers: []\n' \
+  > products/other-only/product.yaml
+git add .
+git commit -q -m "other-only"
+git push -q "$REMOTE" other
+
+rm -rf "$WORK_DIR" "$CONTENT_DIR"
+CONTENT_DIR="$ROOT/content-branches"
+WORK_DIR="$CONTENT_DIR/_work"
+REVISIONS_DIR="$CONTENT_DIR/revisions"
+POINTER_FILE="$CONTENT_DIR/.oolong-current-revision"
+ACTIVE_POINTER_FILE="$CONTENT_DIR/.oolong-active-revision"
+REVISION_RETENTION_COUNT=5
+mkdir -p "$REVISIONS_DIR"
+GIT_REPO_URL="$REMOTE"
+GIT_BRANCH=main
+sync_worktree
+publish_revision
+MAIN_SHA="$(git -C "$WORK_DIR" rev-parse HEAD)"
+assert test "$(tr -d '\n' < "$POINTER_FILE")" = "$MAIN_SHA"
+assert test -d "$REVISIONS_DIR/$MAIN_SHA/products/main-only"
+assert test ! -d "$REVISIONS_DIR/$MAIN_SHA/products/other-only"
+
+GIT_BRANCH=other
+sync_worktree
+publish_revision
+OTHER_SHA="$(git -C "$WORK_DIR" rev-parse HEAD)"
+assert test "$MAIN_SHA" != "$OTHER_SHA"
+assert test "$(tr -d '\n' < "$POINTER_FILE")" = "$OTHER_SHA"
+assert test -d "$REVISIONS_DIR/$OTHER_SHA/products/other-only"
+assert test ! -d "$REVISIONS_DIR/$OTHER_SHA/products/main-only"
+
 echo "test retention preserves active and candidate revisions"
 REVISION_RETENTION_COUNT=1
 write_complete_revision "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" "old-active"

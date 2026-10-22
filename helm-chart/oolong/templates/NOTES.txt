@@ -1,8 +1,11 @@
 Oolong installed
 
+This chart requires an explicit compatible server image (image={{ .Values.image }}).
+The published 25.10.6 registry image does not implement /healthz or git snapshot reload.
+
 Pagination requires PAGE_TOKEN_SECRET in production. This release uses Secret "{{ include "oolong.pageTokenSecretName" . }}" (key {{ .Values.pageTokenSecret.secretKey }}).
 {{- if and .Values.pageTokenSecret.create (not .Values.pageTokenSecret.existingSecret) }}
-If the chart created that Secret on first install, it is kept across upgrades (helm.sh/resource-policy: keep).
+The chart-managed Secret is re-rendered on upgrade and keeps its existing encoded value.
 {{- else if .Values.pageTokenSecret.existingSecret }}
 You supplied pageTokenSecret.existingSecret; ensure that Secret exists in namespace {{ .Release.Namespace }}.
 {{- end }}

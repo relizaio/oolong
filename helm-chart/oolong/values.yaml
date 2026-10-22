@@ -4,7 +4,10 @@
 
 replicaCount: 1
 
-image: registry.relizahub.com/library/oolong-server:25.10.6@sha256:23718baf897d31a780b18b3d910b06407c9cddb64c7e3e7df68944ef1092235b
+# Required. The published 25.10.6 image does not implement /healthz or git
+# snapshot reload. Set a build from this branch, for example oolong-server:local.
+# Leave empty to fail helm install/upgrade until an explicit compatible image is set.
+image: ""
 
 imagePullSecrets: []
 nameOverride: ""

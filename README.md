@@ -108,18 +108,13 @@ docker-compose -f docker-compose.dev.yml up -d --build
 
 ## Installation via helm chart
 
-The server image requires `PAGE_TOKEN_SECRET` when `NODE_ENV=production`. By default the chart creates a Kubernetes Secret on **first install only** (stable across `helm upgrade`). Alternatively, create a Secret yourself and set `pageTokenSecret.create=false` and `pageTokenSecret.existingSecret`.
+**Required image override.** This chart's liveness probe (`/healthz`) and git snapshot loader are not in the published `25.10.6` image. Helm fails unless you set `image` to a build from this branch. The default `values.yaml` `image` is empty on purpose.
 
-With an empty PVC, mount content via git pod or populate the volume; otherwise the pod serves an empty content root instead of the image fixtures.
+The server image requires `PAGE_TOKEN_SECRET` when `NODE_ENV=production`. By default the chart creates a Kubernetes Secret and re-renders it on upgrade while keeping the existing encoded value. Alternatively, create a Secret yourself and set `pageTokenSecret.create=false` and `pageTokenSecret.existingSecret`.
+
+With an empty PVC, mount content via git pod or populate the volume; otherwise git mode stays unready until the first valid revision is published.
 
 ### Using local chart (development mode)
-
-Default install (chart creates `PAGE_TOKEN_SECRET` once):
-
-```bash
-helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
-    --version 0.0.7
-```
 
 Local image on kind (after `kind load docker-image oolong-server:local`):
 
@@ -137,6 +132,7 @@ kubectl create namespace oolong
 kubectl create secret generic oolong-page-token -n oolong \
   --from-literal=PAGE_TOKEN_SECRET="$(openssl rand -base64 48)"
 helm upgrade --install -n oolong oolong helm-chart/oolong \
+  --set image=oolong-server:local \
   --set pageTokenSecret.create=false \
   --set pageTokenSecret.existingSecret=oolong-page-token
 ```
@@ -144,30 +140,27 @@ helm upgrade --install -n oolong oolong helm-chart/oolong \
 Sample installation on k3d:
 
 ```bash
-helm upgrade --install --create-namespace -n oolong --set useTraefikDevelopment=true \
-    --set env.SERVER_HOST='http://oolong.localhost:8003' oolong helm-chart/oolong \
-    --version 0.0.7
+helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
+    --set image=oolong-server:local \
+    --set useTraefikDevelopment=true \
+    --set env.SERVER_HOST='http://oolong.localhost:8003'
 ```
 
 ### Using official chart from registry
 
-```bash
-helm upgrade --install --create-namespace -n oolong oolong registry.relizahub.com/library/oolong \
-    --version 0.0.7
-```
+Do not install the published `0.0.7` chart / `25.10.6` image for this branch. Use the local chart and a compatible image override until a new image is published.
 
 ### Git Pod Configuration
 
-Enable automatic Git synchronization to populate content from a Git repository. Note, currently, only public repositories are supported.
+Enable automatic Git synchronization to populate content from a Git repository. Note, currently, only public repositories are supported. The Git pod rolls when the rendered Git ConfigMap changes (`checksum/git-script`).
 
 ```bash
-helm upgrade --install --create-namespace -n oolong \
+helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
+  --set image=oolong-server:local \
   --set gitPod.enabled=true \
   --set gitPod.repoUrl='https://github.com/your-org/your-repo.git' \
   --set gitPod.branch='main' \
-  --set gitPod.syncInterval='60' \
-  oolong helm-chart/oolong \
-  --version 0.0.7
+  --set gitPod.syncInterval='60'
 ```
 
 **Configuration options:**
@@ -177,7 +170,7 @@ helm upgrade --install --create-namespace -n oolong \
 - `gitPod.syncInterval` - Sync interval in seconds (default: `60`)
 - `gitPod.mountPath` - Mount path for content (default: `/content`)
 
-The Git pod clones into `/_work`, copies each commit into `/content/revisions/<sha>/`, and atomically updates `/content/.oolong-current-revision`. Set `env.CONTENT_RELOAD_INTERVAL_MS` (for example `60000`) on the Oolong server so it reloads validated snapshots without a pod restart. Invalid revisions are rejected and the previous snapshot keeps serving.
+The Git pod treats `/_work` as a disposable checkout: it fetches `gitPod.branch`, checks out that exact commit, copies it into `/content/revisions/<sha>/`, and atomically updates `/content/.oolong-current-revision`. The server polls automatically when git sync is enabled. Invalid revisions are rejected and the previous snapshot keeps serving.
 
 
 ## Generation from TEA OpenAPI Specification
