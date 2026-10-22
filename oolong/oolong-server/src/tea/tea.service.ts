@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { ContentSnapshotRegistry } from './content-snapshot';
 import {
   Artifact,
   Collection,
@@ -77,7 +78,12 @@ function matchesId(
 
 @Injectable()
 export class TeaService {
-  constructor(readonly store: ContentStore) {}
+  constructor(private readonly snapshots: ContentSnapshotRegistry) {}
+
+  private active(): { store: ContentStore; revision: string } {
+    const view = this.snapshots.capture();
+    return { store: view.store, revision: view.revision };
+  }
 
   private queryOf(source: Record<string, unknown>): PageQuery {
     return {
@@ -91,39 +97,43 @@ export class TeaService {
   }
 
   listProducts(source: Record<string, unknown>) {
+    const { store, revision } = this.active();
     const state = resolvePage(
       this.queryOf(source),
       'products',
       '',
       ['name'],
       'name',
+      revision,
     );
     const desc = state.sortOrder === 'desc';
-    const items = byName([...this.store.products.values()], desc).filter(
-      (item) => matchesId(item.identifiers, state.idType, state.idValue),
+    const items = byName([...store.products.values()], desc).filter((item) =>
+      matchesId(item.identifiers, state.idType, state.idValue),
     );
     return pageResult(items, state);
   }
 
   getProduct(uuid: string): Product {
-    const found = this.store.products.get(requireUuid(uuid));
+    const { store } = this.active();
+    const found = store.products.get(requireUuid(uuid));
     if (!found) throw new TeaException(404, 'OBJECT_UNKNOWN');
     return found;
   }
 
   listProductReleases(uuid: string, source: Record<string, unknown>) {
+    const { store, revision } = this.active();
     const id = requireUuid(uuid);
-    if (!this.store.products.has(id))
-      throw new TeaException(404, 'OBJECT_UNKNOWN');
+    if (!store.products.has(id)) throw new TeaException(404, 'OBJECT_UNKNOWN');
     const state = resolvePage(
       this.queryOf(source),
       'product-releases',
       id,
       ['createdDate', 'releaseDate', 'version'],
       'createdDate',
+      revision,
     );
     const items = this.sortReleases(
-      this.store.releasesByProduct.get(id) ?? [],
+      store.releasesByProduct.get(id) ?? [],
       state.sortField,
       state.sortOrder,
     );
@@ -131,15 +141,17 @@ export class TeaService {
   }
 
   listAllProductReleases(source: Record<string, unknown>) {
+    const { store, revision } = this.active();
     const state = resolvePage(
       this.queryOf(source),
       'product-release-query',
       '',
       ['createdDate', 'releaseDate', 'version'],
       'createdDate',
+      revision,
     );
     const items = this.sortReleases(
-      [...this.store.productReleases.values()],
+      [...store.productReleases.values()],
       state.sortField,
       state.sortOrder,
     ).filter((item) =>
@@ -151,35 +163,40 @@ export class TeaService {
   getProductRelease(
     uuid: string,
   ): ProductRelease & { latestCollection: Collection } {
-    const found = this.store.productReleases.get(requireUuid(uuid));
+    const { store } = this.active();
+    const found = store.productReleases.get(requireUuid(uuid));
     if (!found) throw new TeaException(404, 'OBJECT_UNKNOWN');
-    return this.store.productReleaseView(found);
+    return store.productReleaseView(found);
   }
 
   listComponents(source: Record<string, unknown>) {
+    const { store, revision } = this.active();
     const state = resolvePage(
       this.queryOf(source),
       'components',
       '',
       ['name'],
       'name',
+      revision,
     );
     const desc = state.sortOrder === 'desc';
-    const items = byName([...this.store.components.values()], desc).filter(
-      (item) => matchesId(item.identifiers, state.idType, state.idValue),
+    const items = byName([...store.components.values()], desc).filter((item) =>
+      matchesId(item.identifiers, state.idType, state.idValue),
     );
     return pageResult(items, state);
   }
 
   getComponent(uuid: string): Component {
-    const found = this.store.components.get(requireUuid(uuid));
+    const { store } = this.active();
+    const found = store.components.get(requireUuid(uuid));
     if (!found) throw new TeaException(404, 'OBJECT_UNKNOWN');
     return found;
   }
 
   listComponentReleases(uuid: string, source: Record<string, unknown>) {
+    const { store, revision } = this.active();
     const id = requireUuid(uuid);
-    if (!this.store.components.has(id))
+    if (!store.components.has(id))
       throw new TeaException(404, 'OBJECT_UNKNOWN');
     const state = resolvePage(
       this.queryOf(source),
@@ -187,9 +204,10 @@ export class TeaService {
       id,
       ['createdDate', 'releaseDate', 'version'],
       'createdDate',
+      revision,
     );
     const items = this.sortComponentReleases(
-      this.store.releasesByComponent.get(id) ?? [],
+      store.releasesByComponent.get(id) ?? [],
       state.sortField,
       state.sortOrder,
     );
@@ -197,15 +215,17 @@ export class TeaService {
   }
 
   listAllComponentReleases(source: Record<string, unknown>) {
+    const { store, revision } = this.active();
     const state = resolvePage(
       this.queryOf(source),
       'component-release-query',
       '',
       ['createdDate', 'releaseDate', 'version'],
       'createdDate',
+      revision,
     );
     const items = this.sortComponentReleases(
-      [...this.store.componentReleases.values()],
+      [...store.componentReleases.values()],
       state.sortField,
       state.sortOrder,
     ).filter((item) =>
@@ -217,9 +237,10 @@ export class TeaService {
   getComponentRelease(
     uuid: string,
   ): ComponentRelease & { latestCollection: Collection } {
-    const found = this.store.componentReleases.get(requireUuid(uuid));
+    const { store } = this.active();
+    const found = store.componentReleases.get(requireUuid(uuid));
     if (!found) throw new TeaException(404, 'OBJECT_UNKNOWN');
-    return this.store.componentReleaseView(found);
+    return store.componentReleaseView(found);
   }
 
   listCollections(
@@ -227,18 +248,20 @@ export class TeaService {
     uuid: string,
     source: Record<string, unknown>,
   ) {
-    const release = this.releaseOf(kind, uuid);
+    const { store, revision } = this.active();
+    const release = this.releaseOf(kind, uuid, store);
     const state = resolvePage(
       this.queryOf(source),
       `${kind}-collections`,
       release.uuid,
       ['version'],
       'version',
+      revision,
     );
     const belongs =
       kind === 'product' ? 'PRODUCT_RELEASE' : 'COMPONENT_RELEASE';
     const items = [
-      ...this.store.collectionsFor(release.uuid, belongs, release.createdDate),
+      ...store.collectionsFor(release.uuid, belongs, release.createdDate),
     ];
     items.sort((a, b) =>
       withOrder(a.version - b.version, state.sortOrder === 'desc'),
@@ -251,10 +274,11 @@ export class TeaService {
     uuid: string,
     version: string,
   ): Collection {
-    const release = this.releaseOf(kind, uuid);
+    const { store } = this.active();
+    const release = this.releaseOf(kind, uuid, store);
     const belongs =
       kind === 'product' ? 'PRODUCT_RELEASE' : 'COMPONENT_RELEASE';
-    const found = this.store.collectionVersion(
+    const found = store.collectionVersion(
       release.uuid,
       requireVersion(version),
       belongs,
@@ -265,22 +289,20 @@ export class TeaService {
   }
 
   getLatestCollection(kind: 'product' | 'component', uuid: string): Collection {
-    const release = this.releaseOf(kind, uuid);
+    const { store } = this.active();
+    const release = this.releaseOf(kind, uuid, store);
     const belongs =
       kind === 'product' ? 'PRODUCT_RELEASE' : 'COMPONENT_RELEASE';
-    return this.store.latestCollection(
-      release.uuid,
-      belongs,
-      release.createdDate,
-    );
+    return store.latestCollection(release.uuid, belongs, release.createdDate);
   }
 
   getArtifact(uuid: string, version: number | 'latest'): Artifact {
+    const { store } = this.active();
     const id = requireUuid(uuid);
     const record =
       version === 'latest'
-        ? this.store.latestArtifact(id)
-        : this.store.artifact(id, version);
+        ? store.latestArtifact(id)
+        : store.artifact(id, version);
     if (!record) throw new TeaException(404, 'OBJECT_UNKNOWN');
     return record.meta;
   }
@@ -293,11 +315,12 @@ export class TeaService {
     kind: 'download' | 'signature',
     mediaType: string | undefined,
   ): void {
+    const { store } = this.active();
     const id = requireUuid(uuid);
     const record =
       version === 'latest'
-        ? this.store.latestArtifact(id)
-        : this.store.artifact(id, version);
+        ? store.latestArtifact(id)
+        : store.artifact(id, version);
     if (!record) throw new TeaException(404, 'OBJECT_UNKNOWN');
     const format = selectFormat(
       record.meta.formats,
@@ -319,7 +342,7 @@ export class TeaService {
         res,
         record.meta,
         format.mediaType,
-        this.store.readBody(sig),
+        store.readBody(sig),
         'signature',
         latest,
         'application/octet-stream',
@@ -340,7 +363,7 @@ export class TeaService {
       res,
       record.meta,
       format.mediaType,
-      this.store.readBody(body),
+      store.readBody(body),
       'download',
       latest,
       format.mediaType,
@@ -349,6 +372,7 @@ export class TeaService {
   }
 
   discover(source: Record<string, unknown>) {
+    const { store } = this.active();
     const tei = singleQuery(source.tei, 'tei');
     const purl = singleQuery(source.purl, 'purl');
     const hasTei = tei !== undefined && tei !== '';
@@ -360,14 +384,12 @@ export class TeaService {
         'provide exactly one of tei or purl',
       );
     }
-    const matches = [...this.store.productReleases.values()].filter(
-      (release) => {
-        const ids = release.identifiers ?? [];
-        if (hasTei)
-          return ids.some((id) => id.idType === 'TEI' && id.idValue === tei);
-        return ids.some((id) => id.idType === 'PURL' && id.idValue === purl);
-      },
-    );
+    const matches = [...store.productReleases.values()].filter((release) => {
+      const ids = release.identifiers ?? [];
+      if (hasTei)
+        return ids.some((id) => id.idType === 'TEI' && id.idValue === tei);
+      return ids.some((id) => id.idType === 'PURL' && id.idValue === purl);
+    });
     matches.sort((a, b) => cmpStr(a.uuid, b.uuid));
     if (matches.length === 0) throw new TeaException(404, 'OBJECT_UNKNOWN');
     return matches.map((release) => ({
@@ -380,15 +402,16 @@ export class TeaService {
     kind: 'product' | 'component' | 'product-release' | 'component-release',
     uuid: string,
   ): never {
+    const { store } = this.active();
     const id = requireUuid(uuid);
     const exists =
       kind === 'product'
-        ? this.store.products.has(id)
+        ? store.products.has(id)
         : kind === 'component'
-          ? this.store.components.has(id)
+          ? store.components.has(id)
           : kind === 'product-release'
-            ? this.store.productReleases.has(id)
-            : this.store.componentReleases.has(id);
+            ? store.productReleases.has(id)
+            : store.componentReleases.has(id);
     if (!exists) throw new TeaException(404, 'OBJECT_UNKNOWN');
     throw new TeaException(404, 'NOT_IMPLEMENTED');
   }
@@ -396,14 +419,15 @@ export class TeaService {
   private releaseOf(
     kind: 'product' | 'component',
     uuid: string,
+    store: ContentStore,
   ): { uuid: string; createdDate: string } {
     const id = requireUuid(uuid);
     if (kind === 'product') {
-      const found = this.store.productReleases.get(id);
+      const found = store.productReleases.get(id);
       if (!found) throw new TeaException(404, 'OBJECT_UNKNOWN');
       return found;
     }
-    const found = this.store.componentReleases.get(id);
+    const found = store.componentReleases.get(id);
     if (!found) throw new TeaException(404, 'OBJECT_UNKNOWN');
     return found;
   }

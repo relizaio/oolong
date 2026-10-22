@@ -177,7 +177,7 @@ helm upgrade --install --create-namespace -n oolong \
 - `gitPod.syncInterval` - Sync interval in seconds (default: `60`)
 - `gitPod.mountPath` - Mount path for content (default: `/content`)
 
-The Git pod will clone the repository and perform `git pull` at the specified interval, keeping the content synchronized with the remote repository.
+The Git pod clones into `/_work`, copies each commit into `/content/revisions/<sha>/`, and atomically updates `/content/.oolong-current-revision`. Set `env.CONTENT_RELOAD_INTERVAL_MS` (for example `60000`) on the Oolong server so it reloads validated snapshots without a pod restart. Invalid revisions are rejected and the previous snapshot keeps serving.
 
 
 ## Generation from TEA OpenAPI Specification

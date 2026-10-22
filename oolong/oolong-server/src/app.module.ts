@@ -1,17 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ContentStore, contentRoot } from './tea/content-store';
+import { ContentSnapshotRegistry } from './tea/content-snapshot';
 import { TeaController } from './tea/tea.controller';
 import { TeaService } from './tea/tea.service';
 import { WellKnownController } from './tea/well-known.controller';
 
 @Module({
   controllers: [TeaController, WellKnownController],
-  providers: [
-    {
-      provide: ContentStore,
-      useFactory: () => new ContentStore(contentRoot()),
-    },
-    TeaService,
-  ],
+  providers: [ContentSnapshotRegistry, TeaService],
 })
 export class AppModule {}

@@ -13,51 +13,61 @@ data:
 
     echo "Starting Git sync script..."
 
-    # Check if repository URL is provided
     if [ -z "$GIT_REPO_URL" ]; then
       echo "ERROR: GIT_REPO_URL environment variable is not set"
       exit 1
     fi
 
     CONTENT_DIR="${CONTENT_DIR:-/content}"
+    WORK_DIR="${CONTENT_DIR}/_work"
+    REVISIONS_DIR="${CONTENT_DIR}/revisions"
+    POINTER_FILE="${CONTENT_DIR}/.oolong-current-revision"
     SYNC_INTERVAL="${SYNC_INTERVAL:-60}"
     GIT_BRANCH="${GIT_BRANCH:-main}"
 
     echo "Configuration:"
     echo "  Repository: $GIT_REPO_URL"
     echo "  Content Directory: $CONTENT_DIR"
+    echo "  Work Directory: $WORK_DIR"
     echo "  Branch: $GIT_BRANCH"
     echo "  Sync Interval: ${SYNC_INTERVAL}s"
 
-    # Set safe.directory in global config (writes to $HOME/.gitconfig which is now writable)
-    echo "Configuring git safe directory..."
-    git config --global --add safe.directory "$CONTENT_DIR"
+    git config --global --add safe.directory "$WORK_DIR"
 
-    # Initial clone or use existing repository
-    if [ ! -d "$CONTENT_DIR/.git" ]; then
-      echo "Cloning repository..."
-      git clone --branch "$GIT_BRANCH" "$GIT_REPO_URL" "$CONTENT_DIR"
-      echo "Repository cloned successfully"
-    else
-      echo "Repository already exists, skipping clone"
-      cd "$CONTENT_DIR"
-      git fetch origin
-      git checkout "$GIT_BRANCH"
-      git reset --hard "origin/$GIT_BRANCH"
+    mkdir -p "$REVISIONS_DIR"
+
+    if [ ! -d "$WORK_DIR/.git" ]; then
+      echo "Cloning repository into work directory..."
+      rm -rf "$WORK_DIR"
+      git clone --branch "$GIT_BRANCH" "$GIT_REPO_URL" "$WORK_DIR"
     fi
 
-    cd "$CONTENT_DIR"
+    publish_revision() {
+      cd "$WORK_DIR"
+      SHA="$(git rev-parse HEAD)"
+      TARGET="$REVISIONS_DIR/$SHA"
+      if [ ! -d "$TARGET" ]; then
+        echo "Publishing immutable revision $SHA"
+        mkdir -p "$TARGET"
+        find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec cp -a {} "$TARGET/" \;
+      fi
+      printf '%s' "$SHA" > "${POINTER_FILE}.new"
+      mv "${POINTER_FILE}.new" "$POINTER_FILE"
+      echo "Active content revision is $SHA"
+    }
+
+    cd "$WORK_DIR"
+    publish_revision
 
     echo "Starting sync loop..."
     while true; do
       echo "$(date '+%Y-%m-%d %H:%M:%S') - Pulling latest changes..."
-      
       if git pull origin "$GIT_BRANCH"; then
+        publish_revision
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Pull successful"
       else
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Pull failed, will retry"
       fi
-      
       sleep "$SYNC_INTERVAL"
     done
 {{- end }}

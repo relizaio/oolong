@@ -21,6 +21,7 @@ export interface TokenState {
   sortOrder: SortOrder;
   pageSize: number;
   index: number;
+  contentRevision: string;
 }
 
 export function assertPageTokenSecret(): string {
@@ -78,6 +79,8 @@ export function readToken(token: string): TokenState {
     (row.sortOrder !== 'asc' && row.sortOrder !== 'desc') ||
     typeof row.pageSize !== 'number' ||
     typeof row.index !== 'number' ||
+    (row.contentRevision !== undefined &&
+      typeof row.contentRevision !== 'string') ||
     !Number.isInteger(row.pageSize) ||
     !Number.isInteger(row.index) ||
     row.pageSize < 1 ||
@@ -95,6 +98,8 @@ export function readToken(token: string): TokenState {
     sortOrder: row.sortOrder,
     pageSize: row.pageSize,
     index: row.index,
+    contentRevision:
+      typeof row.contentRevision === 'string' ? row.contentRevision : '',
   };
 }
 
@@ -179,6 +184,7 @@ export function resolvePage(
   parent: string,
   allowedSort: readonly string[],
   defaultSort: string,
+  contentRevision: string,
 ): TokenState {
   const suppliedSize = parsePageSize(query.pageSize);
   const suppliedOrder = parseSortOrder(query.sortOrder);
@@ -200,9 +206,17 @@ export function resolvePage(
       sortOrder: suppliedOrder,
       pageSize: suppliedSize,
       index: 0,
+      contentRevision,
     };
   }
   const token = readToken(query.pageToken);
+  if (token.contentRevision !== contentRevision) {
+    throw new TeaException(
+      400,
+      'INVALID_PAGE_TOKEN',
+      'page token does not match this request',
+    );
+  }
   if (token.op !== op || token.parent !== parent) {
     throw new TeaException(
       400,

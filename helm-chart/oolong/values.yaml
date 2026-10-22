@@ -99,6 +99,8 @@ env:
   API_VERSION: "v1.0.0"
   SERVER_HOST: "http://localhost:3000"
   DEBUG_MODE: "false"  # Set to "true" to enable verbose debug logging
+  # Poll for .oolong-current-revision when using the git sync sidecar (milliseconds).
+  # CONTENT_RELOAD_INTERVAL_MS: "60000"
 
 # Health check configuration
 healthcheck:

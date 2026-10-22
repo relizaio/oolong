@@ -1,7 +1,9 @@
+import { TeaException } from './errors';
 import {
   assertPageTokenSecret,
   parseIdFilter,
   readToken,
+  resolvePage,
   signToken,
 } from './pagination';
 
@@ -28,6 +30,7 @@ describe('PAGE_TOKEN_SECRET', () => {
       sortOrder: 'asc',
       pageSize: 25,
       index: 0,
+      contentRevision: 'static',
     });
     expect(readToken(open).op).toBe('products');
 
@@ -41,6 +44,7 @@ describe('PAGE_TOKEN_SECRET', () => {
       sortOrder: 'asc',
       pageSize: 25,
       index: 0,
+      contentRevision: 'static',
     });
     expect(readToken(bound).index).toBe(0);
     delete process.env.PAGE_TOKEN_SECRET;
@@ -64,6 +68,7 @@ describe('PAGE_TOKEN_SECRET', () => {
       sortOrder: 'asc',
       pageSize: 25,
       index: 1,
+      contentRevision: 'static',
     });
     expect(readToken(token).index).toBe(1);
   });
@@ -87,5 +92,32 @@ describe('parseIdFilter', () => {
     expect(() => parseIdFilter('NOT_A_TYPE', undefined)).toThrow(
       /invalid idType/,
     );
+  });
+});
+
+describe('resolvePage content revision', () => {
+  it('binds new tokens to the active revision and rejects stale tokens', () => {
+    const first = resolvePage({}, 'products', '', ['name'], 'name', 'rev-a');
+    expect(first.contentRevision).toBe('rev-a');
+    const token = signToken({ ...first, index: 1 });
+    const continued = resolvePage(
+      { pageToken: token },
+      'products',
+      '',
+      ['name'],
+      'name',
+      'rev-a',
+    );
+    expect(continued.index).toBe(1);
+    expect(() =>
+      resolvePage(
+        { pageToken: token },
+        'products',
+        '',
+        ['name'],
+        'name',
+        'rev-b',
+      ),
+    ).toThrow(TeaException);
   });
 });
