@@ -1,0 +1,8 @@
+version: 2
+createdDate: '2026-01-20T00:00:00Z'
+belongsTo: COMPONENT_RELEASE
+updateReason:
+  type: ARTIFACT_ADDED
+artifacts:
+  - uuid: 55555555-5555-4555-8555-555555555557
+    version: 1

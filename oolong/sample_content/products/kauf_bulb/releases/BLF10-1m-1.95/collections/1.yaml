@@ -1,6 +1,6 @@
 version: 1
-date: '2025-10-16T19:07:56Z'
+createdDate: '2025-10-16T19:07:56Z'
+belongsTo: PRODUCT_RELEASE
 updateReason:
   type: INITIAL_RELEASE
-  comment: 
 artifacts: []

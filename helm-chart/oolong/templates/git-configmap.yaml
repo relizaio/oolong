@@ -13,51 +13,70 @@ data:
 
     echo "Starting Git sync script..."
 
-    # Check if repository URL is provided
+    if ! command -v flock >/dev/null 2>&1; then
+      echo "ERROR: flock is required for single-writer publication"
+      exit 1
+    fi
+
     if [ -z "$GIT_REPO_URL" ]; then
       echo "ERROR: GIT_REPO_URL environment variable is not set"
       exit 1
     fi
 
     CONTENT_DIR="${CONTENT_DIR:-/content}"
+    WORK_DIR="${CONTENT_DIR}/_work"
+    REVISIONS_DIR="${CONTENT_DIR}/revisions"
+    POINTER_FILE="${CONTENT_DIR}/.oolong-current-revision"
     SYNC_INTERVAL="${SYNC_INTERVAL:-60}"
     GIT_BRANCH="${GIT_BRANCH:-main}"
+    REVISION_RETENTION_COUNT="${REVISION_RETENTION_COUNT:-5}"
+
+    case "$REVISION_RETENTION_COUNT" in
+      ''|*[!0-9]*)
+        echo "ERROR: REVISION_RETENTION_COUNT must be a positive integer" >&2
+        exit 1
+        ;;
+    esac
+
+    if [ "$REVISION_RETENTION_COUNT" -lt 1 ] ||
+       [ "$REVISION_RETENTION_COUNT" -gt 1000 ]; then
+      echo "ERROR: REVISION_RETENTION_COUNT must be between 1 and 1000" >&2
+      exit 1
+    fi
 
     echo "Configuration:"
     echo "  Repository: $GIT_REPO_URL"
     echo "  Content Directory: $CONTENT_DIR"
+    echo "  Work Directory: $WORK_DIR"
     echo "  Branch: $GIT_BRANCH"
     echo "  Sync Interval: ${SYNC_INTERVAL}s"
+    echo "  Revision retention: ${REVISION_RETENTION_COUNT}"
 
-    # Set safe.directory in global config (writes to $HOME/.gitconfig which is now writable)
-    echo "Configuring git safe directory..."
-    git config --global --add safe.directory "$CONTENT_DIR"
+    git config --global --add safe.directory "$WORK_DIR"
+    git config --global protocol.file.allow never
+    git config --global protocol.git.allow never
+    git config --global protocol.ssh.allow never
+    git config --global protocol.ext.allow never
+    git config --global protocol.http.allow never
 
-    # Initial clone or use existing repository
-    if [ ! -d "$CONTENT_DIR/.git" ]; then
-      echo "Cloning repository..."
-      git clone --branch "$GIT_BRANCH" "$GIT_REPO_URL" "$CONTENT_DIR"
-      echo "Repository cloned successfully"
-    else
-      echo "Repository already exists, skipping clone"
-      cd "$CONTENT_DIR"
-      git fetch origin
-      git checkout "$GIT_BRANCH"
-      git reset --hard "origin/$GIT_BRANCH"
-    fi
+    mkdir -p "$REVISIONS_DIR"
 
-    cd "$CONTENT_DIR"
+    . /scripts/git-publish.inc.sh
+
+    validate_git_repo_url || exit 1
+
+    locked_sync_and_publish
 
     echo "Starting sync loop..."
     while true; do
-      echo "$(date '+%Y-%m-%d %H:%M:%S') - Pulling latest changes..."
-      
-      if git pull origin "$GIT_BRANCH"; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - Pull successful"
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - Fetching $GIT_BRANCH..."
+      if locked_sync_and_publish; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Sync successful"
       else
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - Pull failed, will retry"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Sync failed, will retry"
       fi
-      
       sleep "$SYNC_INTERVAL"
     done
+  git-publish.inc.sh: |
+{{ .Files.Get "scripts/git-publish.inc.sh" | nindent 4 }}
 {{- end }}

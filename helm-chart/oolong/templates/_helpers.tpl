@@ -49,3 +49,68 @@ Selector labels
 app.kubernetes.io/name: {{ include "oolong.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Server pods only. Must not match the Git Deployment, or kubectl logs/exec
+and the Service will treat Git pods as server replicas.
+*/}}
+{{- define "oolong.serverSelectorLabels" -}}
+{{ include "oolong.selectorLabels" . }}
+app.kubernetes.io/component: server
+{{- end }}
+
+{{/*
+Git publisher pods only.
+*/}}
+{{- define "oolong.gitSelectorLabels" -}}
+{{ include "oolong.selectorLabels" . }}
+app.kubernetes.io/component: git
+{{- end }}
+
+{{/*
+Public HTTPS remotes only. Local file remotes stay in tests that call
+sync_worktree directly, not the Git pod entrypoint.
+*/}}
+{{- define "oolong.requireGitRepoUrl" -}}
+{{- if not .Values.gitPod.repoUrl }}
+{{- fail "gitPod.repoUrl is required when gitPod.enabled is true" }}
+{{- end }}
+{{- if not (hasPrefix "https://" .Values.gitPod.repoUrl) }}
+{{- fail "gitPod.repoUrl must be an https:// URL. The Git pod disables git://, ssh://, http://, and file://." }}
+{{- end }}
+{{- end }}
+
+{{/*
+Kubernetes Secret name for pagination HMAC signing.
+*/}}
+{{- define "oolong.pageTokenSecretName" -}}
+{{- if .Values.pageTokenSecret.existingSecret -}}
+{{- .Values.pageTokenSecret.existingSecret -}}
+{{- else -}}
+{{- printf "%s-page-token" (include "oolong.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Fail fast when the chart is not allowed to create a secret and none was named.
+*/}}
+{{- define "oolong.requirePageTokenSecret" -}}
+{{- if not .Values.pageTokenSecret.create -}}
+{{- if not .Values.pageTokenSecret.existingSecret -}}
+{{- fail "pageTokenSecret.existingSecret is required when pageTokenSecret.create is false" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+This chart's probes and git snapshot loader are not in the published 25.10.6 image.
+Fail closed until a compatible image is set explicitly.
+*/}}
+{{- define "oolong.requireCompatibleImage" -}}
+{{- if not .Values.image -}}
+{{- fail "image is required. The published 25.10.6 image is incompatible with this chart (/healthz and git snapshot reload). Set --set image=<compatible-image>, for example oolong-server:local." -}}
+{{- end -}}
+{{- if contains "oolong-server:25.10.6" .Values.image -}}
+{{- fail "image 25.10.6 is incompatible with this chart: it does not implement /healthz or git snapshot reload. Set --set image=<compatible-image> built from this branch." -}}
+{{- end -}}
+{{- end -}}

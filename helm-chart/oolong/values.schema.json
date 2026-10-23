@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "gitPod": {
+      "type": "object",
+      "properties": {
+        "revisionRetentionCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "allowedHosts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9.-]+$"
+          }
+        }
+      }
+    }
+  }
+}

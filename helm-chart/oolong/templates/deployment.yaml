@@ -1,14 +1,16 @@
+{{- include "oolong.requireCompatibleImage" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "oolong.fullname" . }}
   labels:
     {{- include "oolong.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "oolong.selectorLabels" . | nindent 6 }}
+      {{- include "oolong.serverSelectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -16,7 +18,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "oolong.selectorLabels" . | nindent 8 }}
+        {{- include "oolong.serverSelectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -37,7 +39,7 @@ spec:
           {{- if .Values.healthcheck.enabled }}
           livenessProbe:
             httpGet:
-              path: {{ .Values.healthcheck.path }}
+              path: {{ .Values.healthcheck.livenessPath | default "/healthz" }}
               port: http
             initialDelaySeconds: {{ .Values.healthcheck.initialDelaySeconds }}
             periodSeconds: {{ .Values.healthcheck.periodSeconds }}
@@ -46,7 +48,7 @@ spec:
             failureThreshold: {{ .Values.healthcheck.failureThreshold }}
           readinessProbe:
             httpGet:
-              path: {{ .Values.healthcheck.path }}
+              path: {{ .Values.healthcheck.readinessPath | default .Values.healthcheck.path }}
               port: http
             initialDelaySeconds: {{ .Values.healthcheck.initialDelaySeconds }}
             periodSeconds: {{ .Values.healthcheck.periodSeconds }}
@@ -58,20 +60,36 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
             {{- range $key, $value := .Values.env }}
+            {{- if ne $key "PAGE_TOKEN_SECRET" }}
             - name: {{ $key }}
               value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+            {{- include "oolong.requirePageTokenSecret" . }}
+            - name: PAGE_TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "oolong.pageTokenSecretName" . | quote }}
+                  key: {{ .Values.pageTokenSecret.secretKey | quote }}
+            {{- if and .Values.gitPod.enabled .Values.persistence.enabled }}
+            - name: CONTENT_GIT_SYNC_ENABLED
+              value: "true"
+            - name: CONTENT_AWAIT_GIT_REVISION
+              value: "true"
+            - name: CONTENT_RELOAD_INTERVAL_MS
+              value: {{ .Values.gitPod.contentReloadIntervalMs | default 60000 | quote }}
             {{- end }}
           {{- if .Values.persistence.enabled }}
           volumeMounts:
             - name: oolong-content
               mountPath: /app/src/content
           {{- end }}
+      {{- if .Values.persistence.enabled }}
       volumes:
         - name: oolong-content
-          {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "oolong.fullname" . }}-content
-          {{- end }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -1,0 +1,6 @@
+version: 1
+createdDate: '2026-01-15T00:00:00Z'
+belongsTo: COMPONENT_RELEASE
+updateReason:
+  type: INITIAL_RELEASE
+artifacts: []

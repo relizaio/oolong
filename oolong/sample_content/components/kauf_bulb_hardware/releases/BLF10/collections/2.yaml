@@ -1,7 +1,8 @@
 version: 2
-date: '2025-10-16T19:09:28Z'
+createdDate: '2025-10-16T19:09:28Z'
+belongsTo: COMPONENT_RELEASE
 updateReason:
   type: ARTIFACT_ADDED
-  comment: 
 artifacts:
-  - 173cedd7-fabb-4d3a-9315-7d7465d236b6
+  - uuid: 173cedd7-fabb-4d3a-9315-7d7465d236b6
+    version: 1

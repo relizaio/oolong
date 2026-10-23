@@ -72,9 +72,10 @@ Query methods support pagination with:
 - Returns `totalResults`, `pageStartIndex`, `pageSize`, and `results`
 
 ### Identifier Filtering
-Query methods support filtering by identifier type and value:
-- Searches through the `identifiers` array in each entity
-- Matches both `idType` and `idValue`
+Query methods search each object's `identifiers` array:
+- `idType` and `idValue` together match one identifier that has both.
+- `idType` alone matches an object that has at least one identifier of that type.
+- `idValue` alone is rejected. The TEA 1.0 text does not settle that case, so this rejection is Oolong behavior, not a claimed specification requirement.
 
 ### Error Handling
 - Returns `NotFoundException` when entities are not found
@@ -91,9 +92,11 @@ The default content directory is `src/content/`, but it's currently gitignored (
 
 ### Environment Variables
 
-- **`API_VERSION`** (default: `v0.2.0-beta.2`) - Version prefix for all API endpoints
-  - Example: With default value, endpoints become `/v0.2.0-beta.2/products`
-  - The version is also exposed in the `/.well-known/tea` discovery endpoint
+- **`API_VERSION`** (required value: `1.0.0` or `v1.0.0`) - Advertised TEA version. Routes are mounted at `/v1.0.0`. Any other value stops startup.
+  - `/.well-known/tea` stays outside that prefix and lists `1.0.0` without a leading `v`
+- **`CONTENT_DIR`** - Filesystem content root. Defaults to `../fixtures/tea-1.0.0` from the server working directory
+- **`PAGE_TOKEN_SECRET`** - HMAC key for pagination tokens. Required unless `PAGE_TOKEN_DEV_FALLBACK=true` and `NODE_ENV` is not `production`. The known development key is never used in deployment configurations. The value is never logged.
+- **`PAGE_TOKEN_DEV_FALLBACK`** - Set to `true` only for local development and tests. Ignored when `NODE_ENV=production`.
 - **`SERVER_HOST`** (default: `http://localhost:3000`) - Public URL for the TEA API
   - Used in the `/.well-known/tea` discovery endpoint
 - **`PORT`** (default: `3000`) - Server port

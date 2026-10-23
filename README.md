@@ -70,10 +70,12 @@ docker build -t oolong-local .
 The following command shows how to run the container image with a custom content directory and environment variables.
 
 ```bash
-docker run -p 3000:3000 \
-  -v /path/to/content:/app/src/content \
-  -e API_VERSION=v0.2.0-beta.2 \
+docker run -p 127.0.0.1:3000:3000 \
+  -v /path/to/content:/app/src/content:ro \
+  -e API_VERSION=v1.0.0 \
+  -e CONTENT_DIR=/app/src/content \
   -e SERVER_HOST=https://myserver.com/tea \
+  -e PAGE_TOKEN_SECRET="$(openssl rand -base64 48)" \
   oolong-local
 ```
 
@@ -81,98 +83,128 @@ It is possible to mount the content directory to the container and use it as a v
 
 ## Run with Docker Compose
 
-### Production Mode
+### Production-style Compose (local image)
 
-Use the pre-built image from the registry:
+Builds the production image (`NODE_ENV=production`), mounts `fixtures/tea-1.0.0`, and requires `PAGE_TOKEN_SECRET`:
 
 ```bash
-docker-compose up -d
+cd oolong
+cp .env.example .env   # edit PAGE_TOKEN_SECRET
+docker compose up -d --build
 ```
 
-This will run the server on `http://localhost:3005` using the image from `registry.relizahub.com/library/oolong-server`.
+The server listens on `http://127.0.0.1:3005`.
 
 ### Development Mode
 
-Build and run from local Dockerfile with development settings:
+Build and run with `NODE_ENV=development` and the explicit pagination-key opt-in (`PAGE_TOKEN_DEV_FALLBACK=true`). That fallback is disabled whenever `NODE_ENV=production`.
 
 ```bash
 docker-compose -f docker-compose.dev.yml up -d --build
 ```
 
-This will build the image locally and run with `NODE_ENV=development`.
-
-Both configurations:
-- Mount the `./oolong/content` directory to serve TEA content
-- Run on port `3005` (mapped to container port `3000`)
-- Set `API_VERSION=v0.2.0-beta.2`
-- Set `SERVER_HOST=http://localhost:3005`
+`docker-compose.tea-interop.yml` is the pinned-spec interop profile: same fixtures, `TEA_SPEC_COMMIT=962a0228af1bfcc1232ac3f79239317ff33fdb04`, and a fixed local `PAGE_TOKEN_SECRET` for CI-style checks.
 
 
 ## Installation via helm chart
 
+**Required image override.** This chart's liveness probe (`/healthz`) and git snapshot loader are not in the published `25.10.6` image. Helm fails unless you set `image` to a build from this branch. The default `values.yaml` `image` is empty on purpose.
+
+The server requires `PAGE_TOKEN_SECRET` unless `PAGE_TOKEN_DEV_FALLBACK=true` and `NODE_ENV` is not `production`. The chart always supplies the Secret and never sets the development fallback. Alternatively, create a Secret yourself and set `pageTokenSecret.create=false` and `pageTokenSecret.existingSecret`.
+
+The TEA API is unauthenticated by design and is intended for a public catalog. Anyone who can reach the Service can read the mounted content. For private content, require authentication at the ingress and do not expose the ClusterIP Service (or pod port) without that control. Artifact download endpoints issue `302 Location` for publisher `http`/`https` URLs stored in the catalog; the server does not fetch those URLs (not server-side SSRF). Other URI schemes remain valid on the TEA object but are not used as redirect targets.
+
+With an empty PVC, mount content via git pod or populate the volume; otherwise git mode stays unready until the first valid revision is published.
+
 ### Using local chart (development mode)
+
+Local image on kind (after `kind load docker-image oolong-server:local`):
+
 ```bash
 helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
-    --version 0.0.7
+  --set image=oolong-server:local \
+  --set persistence.enabled=false \
+  --set env.SERVER_HOST='http://127.0.0.1:3000'
+```
+
+Bring your own Secret:
+
+```bash
+kubectl create namespace oolong
+kubectl create secret generic oolong-page-token -n oolong \
+  --from-literal=PAGE_TOKEN_SECRET="$(openssl rand -base64 48)"
+helm upgrade --install -n oolong oolong helm-chart/oolong \
+  --set image=oolong-server:local \
+  --set pageTokenSecret.create=false \
+  --set pageTokenSecret.existingSecret=oolong-page-token
 ```
 
 Sample installation on k3d:
 
 ```bash
-helm upgrade --install --create-namespace -n oolong --set useTraefikDevelopment=true \
-    --set env.SERVER_HOST='http://oolong.localhost:8003' oolong helm-chart/oolong \
-    --version 0.0.7
+helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
+    --set image=oolong-server:local \
+    --set useTraefikDevelopment=true \
+    --set env.SERVER_HOST='http://oolong.localhost:8003'
 ```
 
 ### Using official chart from registry
 
-```bash
-helm upgrade --install --create-namespace -n oolong oolong registry.relizahub.com/library/oolong \
-    --version 0.0.7
-```
+Do not install the published `0.0.7` chart / `25.10.6` image for this branch. Use the local chart and a compatible image override until a new image is published.
 
 ### Git Pod Configuration
 
-Enable automatic Git synchronization to populate content from a Git repository. Note, currently, only public repositories are supported.
+Enable automatic Git synchronization to populate content from a public HTTPS Git repository. The Git pod uses `Recreate` and a `flock` on the shared volume so an upgrade does not run two publishers against the same checkout. The lock is held by the publishing process and is released when that process exits. It rolls when the rendered Git ConfigMap changes (`checksum/git-script`). The server keeps serving its accepted snapshot while the Git pod restarts.
+
+`gitPod.repoUrl` must be `https://` with no userinfo. The Git pod disables `git://`, `ssh://`, `http://`, and `file://`. Optional `gitPod.allowedHosts` is an exact hostname allowlist. Hostname checks do not follow DNS changes or Git redirects; apply a NetworkPolicy or cluster egress control so the Git pod cannot reach internal or metadata destinations.
+
+`gitPod.revisionRetentionCount` is an integer from 1 to 1000 (`values.schema.json`). Helm passes it as the `REVISION_RETENTION_COUNT` environment variable. The Git script validates the value and never interpolates Helm values into shell text.
+
+Server pods are labeled `app.kubernetes.io/component=server` and Git pods `app.kubernetes.io/component=git`, so `kubectl logs deploy/<release>` no longer selects both. Those Deployment selectors are immutable: if an upgrade from an older chart fails, delete the two Deployments (keep the PVC) and run `helm upgrade` again.
 
 ```bash
-helm upgrade --install --create-namespace -n oolong \
+helm upgrade --install --create-namespace -n oolong oolong helm-chart/oolong \
+  --set image=oolong-server:local \
   --set gitPod.enabled=true \
   --set gitPod.repoUrl='https://github.com/your-org/your-repo.git' \
   --set gitPod.branch='main' \
-  --set gitPod.syncInterval='60' \
-  oolong helm-chart/oolong \
-  --version 0.0.7
+  --set gitPod.syncInterval='60'
 ```
 
 **Configuration options:**
 - `gitPod.enabled` - Enable/disable Git pod (default: `false`)
-- `gitPod.repoUrl` - Git repository URL (required when enabled)
+- `gitPod.repoUrl` - Public `https://` Git URL (required when enabled)
+- `gitPod.allowedHosts` - Optional exact hostname allowlist (default: empty)
 - `gitPod.branch` - Git branch to sync (default: `main`)
 - `gitPod.syncInterval` - Sync interval in seconds (default: `60`)
+- `gitPod.revisionRetentionCount` - Revisions to keep (1-1000, default: `5`)
 - `gitPod.mountPath` - Mount path for content (default: `/content`)
 
-The Git pod will clone the repository and perform `git pull` at the specified interval, keeping the content synchronized with the remote repository.
+The Git pod treats `/_work` as a disposable checkout: it fetches `gitPod.branch`, checks out that exact commit, copies it into `/content/revisions/<sha>/`, and atomically updates `/content/.oolong-current-revision`. The server polls automatically when git sync is enabled. Invalid revisions are rejected and the previous snapshot keeps serving.
+
+A TEA 1.0.0 conversion of the conference demo catalog lives in the sibling
+`conferences-oolong-content-2025-11` clone
+([Reliza-Demos/conferences-oolong-content-2025-11](https://github.com/Reliza-Demos/conferences-oolong-content-2025-11)).
+After that conversion is pushed, set `gitPod.repoUrl` to that repository. The
+`conference-git-live` end-to-end test publishes a local clone of that tree,
+renames Kauf Bulb, and checks that `/v1.0.0/products` returns the new name.
 
 
 ## Generation from TEA OpenAPI Specification
 
-```bash
-npx @openapitools/openapi-generator-cli version-manager set 7.16.0
-npx @openapitools/openapi-generator-cli generate -i tea-spec/openapi.yaml -g typescript-nestjs-server -o oolong/oolong-server/src/generated-nest/
-```
+The running API is the handwritten server in `oolong/oolong-server/src/tea`. `src/generated-nest` remains the Beta 2 snapshot and is not mounted.
+
+OpenAPI Generator CLI 7.16.0 can emit models for the pinned 1.0.0 document, and its download controllers do not preserve binary responses or the `If-None-Match` header. Do not regenerate into `src/generated-nest`. The trial is recorded in `docs/tea-upgrade/generator-strategy.md`.
 
 ## Run Locally for Development
 
 ```bash
-cd oolong/oolong-server/src/generated-nest
+cd oolong/oolong-server
 npm ci --ignore-scripts
-
-cd ../../
-npm ci --ignore-scripts
-
 npm run start:dev
 ```
+
+The server reads `CONTENT_DIR`, or `../fixtures/tea-1.0.0` when that variable is unset. `API_VERSION` must be `1.0.0` or `v1.0.0`.
 
 ## More Documentation
 Refer to [IMPLEMENTATION_NOTES.md](oolong/oolong-server/IMPLEMENTATION_NOTES.md) for more details.

@@ -1,0 +1,23 @@
+uuid: 55555555-5555-4555-8555-555555555555
+version: 2
+name: Widget SBOM
+type: BOM
+createdDate: '2026-02-01T00:00:00Z'
+distributionIds:
+  - 66666666-6666-4666-8666-666666666666
+formats:
+  - mediaType: application/vnd.cyclonedx+json
+    description: Hosted CycloneDX JSON
+    bodyFile: widget.json
+    signatureFile: widget.json.sig
+    checksums:
+      - algType: SHA-256
+        algValue: 8c5170df0ae7a47f77b2f0b1f03c04500343aa2a26863098d2f133b9350d0f98
+      - algType: SHA-1
+        algValue: a9ac7d6e8b5aae33125cd3c3d58c9bb5e3924e35
+  - mediaType: application/vnd.cyclonedx+xml
+    description: Hosted CycloneDX XML
+    bodyFile: widget.xml
+    checksums:
+      - algType: SHA-256
+        algValue: d29d6d76e387b580977cb53148e71437ca20f9c176dc6057640d539de62646e2

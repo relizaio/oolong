@@ -4,7 +4,10 @@
 
 replicaCount: 1
 
-image: registry.relizahub.com/library/oolong-server:25.10.6@sha256:23718baf897d31a780b18b3d910b06407c9cddb64c7e3e7df68944ef1092235b
+# Required. The published 25.10.6 image does not implement /healthz or git
+# snapshot reload. Set a build from this branch, for example oolong-server:local.
+# Leave empty to fail helm install/upgrade until an explicit compatible image is set.
+image: ""
 
 imagePullSecrets: []
 nameOverride: ""
@@ -69,9 +72,18 @@ gitPod:
     #   cpu: 50m
     #   memory: 64Mi
   # Git repository configuration
-  repoUrl: ""  # Git repository URL (required when gitPod.enabled is true)
+  repoUrl: ""  # Public https:// Git URL (required when gitPod.enabled is true)
+  # Optional exact-match hostname allowlist. Empty allows any https host.
+  # Hostname checks do not follow DNS changes or Git redirects; restrict
+  # Git-pod egress with a NetworkPolicy or cluster egress control.
+  allowedHosts: []
   branch: "main"  # Git branch to sync
   syncInterval: "60"  # Sync interval in seconds
+  # Server polls for new revisions when git sync is enabled (milliseconds).
+  contentReloadIntervalMs: 60000
+  # Immutable revision directories kept on the content PVC (oldest pruned after publish).
+  # Integer 1-1000, passed as REVISION_RETENTION_COUNT. Not interpolated into shell.
+  revisionRetentionCount: 5
   # Security context for git pod
   securityContext:
     capabilities:
@@ -83,16 +95,31 @@ gitPod:
   # Additional environment variables for git pod
   env: {}
 
+# Pagination token HMAC key (required unless PAGE_TOKEN_DEV_FALLBACK=true and
+# NODE_ENV is not production). The chart never sets that opt-in.
+# Default: chart creates <release-fullname>-page-token (re-rendered on upgrade with the
+# existing encoded value; not rotated automatically). Set existingSecret to BYO instead.
+pageTokenSecret:
+  create: true
+  existingSecret: ""
+  secretKey: PAGE_TOKEN_SECRET
+  # Optional fixed value on first install when create=true and existingSecret is empty.
+  # Leave empty to generate a random value once.
+  value: ""
+
 # Environment variables
 env:
-  API_VERSION: "v0.2.0-beta.2"
+  API_VERSION: "v1.0.0"
   SERVER_HOST: "http://localhost:3000"
   DEBUG_MODE: "false"  # Set to "true" to enable verbose debug logging
+  # CONTENT_RELOAD_INTERVAL_MS is set automatically when gitPod.enabled and persistence are on.
 
 # Health check configuration
 healthcheck:
   enabled: true
   path: "/.well-known/tea"
+  livenessPath: "/healthz"
+  readinessPath: "/.well-known/tea"
   initialDelaySeconds: 15
   periodSeconds: 30
   timeoutSeconds: 10
